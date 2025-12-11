@@ -1,0 +1,5 @@
+{
+  "name": "LendLedger",
+  "description": "A comprehensive informal lending management system with dashboard analytics, borrower profiling, loan amortization tracking, and AI-powered collection assistance.",
+  "requestFramePermissions": []
+}
