@@ -22,6 +22,7 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
     startDate: new Date().toISOString().split('T')[0]
   });
   const [signature, setSignature] = useState<string>('');
+  const [hasSignature, setHasSignature] = useState<boolean>(false);
   const signatureRef = useRef<SignatureCanvas>(null);
 
   const [dueDateDisplay, setDueDateDisplay] = useState('');
@@ -42,10 +43,21 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
   };
 
   const handleSignatureSubmit = () => {
-    if (signatureRef.current && !signatureRef.current.isEmpty()) {
+    if (signatureRef.current && hasSignature) {
       const signatureData = signatureRef.current.toDataURL();
       setSignature(signatureData);
       setCurrentStep('confirm');
+    }
+  };
+
+  const handleSignatureBegin = () => {
+    setHasSignature(true);
+  };
+
+  const handleSignatureEnd = () => {
+    // Check if signature is actually empty after drawing
+    if (signatureRef.current) {
+      setHasSignature(!signatureRef.current.isEmpty());
     }
   };
 
@@ -74,6 +86,7 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
         startDate: new Date().toISOString().split('T')[0]
     });
     setSignature('');
+    setHasSignature(false);
     setCurrentStep('form');
     onClose();
   };
@@ -93,7 +106,12 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
         <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
-            <button onClick={() => { setCurrentStep('form'); onClose(); }} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-50 p-2 rounded-full transition-colors">
+            <button onClick={() => { 
+                setCurrentStep('form'); 
+                setHasSignature(false);
+                setSignature('');
+                onClose(); 
+            }} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-50 p-2 rounded-full transition-colors">
                 <X size={20} />
             </button>
             
@@ -189,7 +207,12 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
                       </div>
 
                       <div className="flex justify-end space-x-3 pt-4">
-                        <button type="button" onClick={() => { setCurrentStep('form'); onClose(); }} className="px-6 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">Cancel</button>
+                        <button type="button" onClick={() => { 
+                            setCurrentStep('form'); 
+                            setHasSignature(false);
+                            setSignature('');
+                            onClose(); 
+                        }} className="px-6 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">Cancel</button>
                         <button type="submit" className="px-8 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 font-semibold shadow-lg shadow-brand-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0">Next: Signature</button>
                       </div>
                     </form>
@@ -223,12 +246,17 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
                                     penColor="black"
                                     minWidth={1}
                                     maxWidth={3}
+                                    onBegin={handleSignatureBegin}
+                                    onEnd={handleSignatureEnd}
                                 />
                             </div>
                             <div className="flex justify-between items-center mt-4">
                                 <button 
                                     type="button" 
-                                    onClick={() => signatureRef.current?.clear()}
+                                    onClick={() => {
+                                        signatureRef.current?.clear();
+                                        setHasSignature(false);
+                                    }}
                                     className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium transition-colors"
                                 >
                                     Clear
@@ -242,7 +270,7 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
                             <button 
                                 type="button" 
                                 onClick={handleSignatureSubmit}
-                                disabled={!signatureRef.current || signatureRef.current.isEmpty()}
+                                disabled={!hasSignature}
                                 className="px-8 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-semibold shadow-lg shadow-brand-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
                             >
                                 Next: Confirm
