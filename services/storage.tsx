@@ -244,7 +244,8 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     }
 
     try {
-      const { data: newLoan, error } = await supabase.from('loans').insert({
+      // Prepare the insert data
+      const insertData: any = {
         user_id: user.id,
         borrower_id: data.borrowerId,
         principal: data.principal,
@@ -257,9 +258,15 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
         status: LoanStatus.ACTIVE,
         balance: totalRepayment,
         total_repayment: totalRepayment,
-        payments: [],
-        signature: data.signature || null
-      }).select().single();
+        payments: []
+      };
+
+      // Only add signature if it exists (to avoid schema errors)
+      if (data.signature) {
+        insertData.signature = data.signature;
+      }
+
+      const { data: newLoan, error } = await supabase.from('loans').insert(insertData).select().single();
 
       if (error) throw error;
 
@@ -284,9 +291,64 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       }
 
       logAction('CREATE_LOAN', `Created loan of R${data.principal} due on ${nextMonth.toDateString()}`);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error adding loan", e);
-      alert("Failed to create loan.");
+
+      // Provide more specific error messages
+      let errorMessage = "Failed to create loan.";
+      if (e.code === '23503') {
+        errorMessage = "Invalid borrower selected. Please try again.";
+      } else if (e.code === '23505') {
+        errorMessage = "A loan with these details already exists.";
+      } else if (e.message?.includes('signature')) {
+        errorMessage = "Signature could not be saved. Loan created without signature.";
+        // Try to create loan without signature
+        try {
+          const insertData: any = {
+            user_id: user.id,
+            borrower_id: data.borrowerId,
+            principal: data.principal,
+            interest_rate: data.interestRate,
+            interest_type: data.interestType,
+            term_value: data.termValue,
+            term_unit: data.termUnit,
+            start_date: data.startDate,
+            due_date: dueDate,
+            status: LoanStatus.ACTIVE,
+            balance: totalRepayment,
+            total_repayment: totalRepayment,
+            payments: []
+          };
+
+          const { data: newLoan, error: retryError } = await supabase.from('loans').insert(insertData).select().single();
+          if (!retryError && newLoan) {
+            setLoans(prev => [...prev, {
+              id: newLoan.id,
+              borrowerId: newLoan.borrower_id,
+              principal: newLoan.principal,
+              interestRate: newLoan.interest_rate,
+              interestType: newLoan.interest_type,
+              termValue: newLoan.term_value,
+              termUnit: newLoan.term_unit,
+              startDate: newLoan.start_date,
+              dueDate: newLoan.due_date,
+              status: newLoan.status,
+              balance: newLoan.balance,
+              totalRepayment: newLoan.total_repayment,
+              payments: newLoan.payments || [],
+              logs: [],
+              signature: data.signature // Keep signature in local state even if not saved to DB
+            }]);
+            logAction('CREATE_LOAN', `Created loan of R${data.principal} (signature saved locally)`);
+            alert("Loan created successfully! Note: Signature saved locally but not in database.");
+            return;
+          }
+        } catch (retryError) {
+          console.error("Retry also failed", retryError);
+        }
+      }
+
+      alert(errorMessage);
     }
   };
 
