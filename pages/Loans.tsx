@@ -209,6 +209,28 @@ export const Loans = () => {
                                             </button>
                                         </div>
                                     </div>
+                                    
+                                    {/* Signature Viewer */}
+                                    {loan.signature && (
+                                        <div className="mt-8">
+                                            <h4 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                                <div className="w-1 h-6 bg-green-500 rounded-full"></div>
+                                                Borrower Signature
+                                            </h4>
+                                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                                <div className="flex items-center justify-center">
+                                                    <img 
+                                                        src={`data:image/png;base64,${loan.signature}`} 
+                                                        alt="Borrower Signature" 
+                                                        className="max-w-full max-h-32 border border-slate-100 rounded-lg shadow-sm"
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-slate-500 text-center mt-3">
+                                                    Signed on {new Date(loan.startDate).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>
