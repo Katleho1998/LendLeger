@@ -69,7 +69,8 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
             balance: d.balance,
             totalRepayment: d.total_repayment,
             payments: d.payments || [], 
-            logs: []
+            logs: [],
+            signature: d.signature
         })));
 
         const { data: aData, error: aError } = await supabase.from('audit_logs').select('*').eq('user_id', user.id).order('timestamp', { ascending: false });
@@ -256,7 +257,8 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
         status: LoanStatus.ACTIVE,
         balance: totalRepayment,
         total_repayment: totalRepayment,
-        payments: []
+        payments: [],
+        signature: data.signature || null
       }).select().single();
 
       if (error) throw error;
@@ -276,7 +278,8 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
             balance: newLoan.balance,
             totalRepayment: newLoan.total_repayment,
             payments: newLoan.payments || [],
-            logs: []
+            logs: [],
+            signature: newLoan.signature
           }]);
       }
 

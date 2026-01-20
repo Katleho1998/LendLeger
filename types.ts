@@ -64,6 +64,7 @@ export interface Loan {
   balance: number;
   payments: Payment[];
   logs: AuditLog[];
+  signature?: string; // Base64 encoded signature image
 }
 
 export interface AuditLog {
