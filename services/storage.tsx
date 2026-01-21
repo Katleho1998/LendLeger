@@ -17,6 +17,7 @@ interface StoreContextType {
   deleteLoan: (id: string) => void;
   addPayment: (loanId: string, amount: number, method: 'CASH' | 'TRANSFER' | 'OTHER') => void;
   recalculateLoans: () => void;
+  updateLoanDueDate: (loanId: string, newDueDate: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -458,6 +459,22 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     });
   };
 
+  const updateLoanDueDate = async (loanId: string, newDueDate: string) => {
+    try {
+      // Write to DB
+      const { error } = await supabase.from('loans').update({ due_date: newDueDate }).eq('id', loanId);
+      if (error) throw error;
+
+      // Update local state
+      setLoans(prev => prev.map(l => l.id === loanId ? { ...l, dueDate: newDueDate } : l));
+
+      logAction('UPDATE_LOAN_DUEDATE', `Updated due date to ${new Date(newDueDate).toLocaleDateString()}`, loanId);
+    } catch (e: any) {
+      console.error('Error updating loan due date', e);
+      alert('Failed to update due date.');
+    }
+  };
+
   useEffect(() => {
     const interval = setInterval(recalculateLoans, 60000);
     if (loans.length > 0) recalculateLoans();
@@ -509,7 +526,8 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       addLoan,
       deleteLoan,
       addPayment,
-      recalculateLoans
+      recalculateLoans,
+      updateLoanDueDate
     }}>
       {children}
     </StoreContext.Provider>

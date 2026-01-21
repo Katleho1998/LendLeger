@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { useStore } from '../services/storage';
 import { Plus, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, Trash2 } from 'lucide-react';
+import { EditDueDateModal } from '../components/EditDueDateModal';
 import { Loan, LoanStatus } from '../types';
 import { generateCollectionMessage } from '../services/geminiService';
 import { CreateLoanModal } from '../components/CreateLoanModal';
 
 export const Loans = () => {
-  const { borrowers, loans, addPayment, searchTerm, setSearchTerm, deleteLoan } = useStore();
+    const { borrowers, loans, addPayment, searchTerm, setSearchTerm, deleteLoan, updateLoanDueDate } = useStore();
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+    const [activeMenu, setActiveMenu] = useState<string | null>(null);
+    const [editDueLoan, setEditDueLoan] = useState<null | { id: string; dueDate: string }>(null);
 
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -137,7 +139,10 @@ export const Loans = () => {
                                     <MoreHorizontal size={20} />
                                 </button>
                                 {activeMenu === loan.id && (
-                                    <div className="absolute right-0 top-full mt-2 w-32 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-1">
+                                    <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-1">
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); setEditDueLoan({ id: loan.id, dueDate: loan.dueDate }); setActiveMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                            <Calendar size={14} /> Edit Due Date
+                                        </button>
                                         <button type="button" onClick={(e) => handleDeleteLoan(e, loan.id)} className="w-full text-left px-4 py-2 text-sm text-rose-500 hover:bg-rose-50 flex items-center gap-2">
                                             <Trash2 size={14} /> Delete
                                         </button>
@@ -312,6 +317,19 @@ export const Loans = () => {
       </div>
       
       <CreateLoanModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
+            <EditDueDateModal
+                isOpen={!!editDueLoan}
+                initialDate={editDueLoan?.dueDate || ''}
+                onClose={() => setEditDueLoan(null)}
+                onSave={async (newIso) => {
+                    if (!editDueLoan) return;
+                    try {
+                        await updateLoanDueDate(editDueLoan.id, newIso);
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }}
+            />
     </div>
   );
 };
