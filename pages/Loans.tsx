@@ -56,14 +56,14 @@ export const Loans = () => {
 
   return (
     <div className="space-y-8" onClick={() => setActiveMenu(null)}>
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Loans Management</h2>
             <p className="text-slate-500 mt-1">Track and manage all active loans.</p>
         </div>
         <button 
             onClick={() => setCreateModalOpen(true)}
-            className="bg-brand-600 text-white px-6 py-3 rounded-xl hover:bg-brand-700 flex items-center space-x-2 shadow-lg shadow-brand-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+            className="bg-brand-600 text-white px-6 py-3 rounded-xl hover:bg-brand-700 flex items-center space-x-2 shadow-lg shadow-brand-500/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0 w-full sm:w-auto justify-center"
         >
             <Plus size={20} strokeWidth={2.5} />
             <span className="font-semibold">New Loan</span>
@@ -71,17 +71,21 @@ export const Loans = () => {
       </div>
 
       {/* Filter / Search Bar */}
-      <div className="flex items-center space-x-4 bg-white p-2 rounded-2xl shadow-sm border border-slate-200 w-full md:w-fit">
-          <div className="bg-slate-50 p-2 rounded-xl text-slate-400"><Search size={20} /></div>
-          <input 
-            type="text" 
-            placeholder="Search loans..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-transparent outline-none text-sm text-slate-900 placeholder-slate-400 w-48 font-medium" 
-          />
-          <div className="h-6 w-[1px] bg-slate-200"></div>
-          <button className="flex items-center space-x-2 text-slate-500 text-sm px-2 hover:text-brand-600 font-medium transition-colors"><Filter size={16} /> <span>Filter</span></button>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 bg-white p-2 rounded-2xl shadow-sm border border-slate-200 w-full">
+          <div className="flex items-center space-x-4 flex-1">
+              <div className="bg-slate-50 p-2 rounded-xl text-slate-400"><Search size={20} /></div>
+              <input 
+                type="text" 
+                placeholder="Search loans..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-transparent outline-none text-sm text-slate-900 placeholder-slate-400 flex-1 font-medium" 
+              />
+          </div>
+          <div className="h-[1px] sm:h-6 sm:w-[1px] bg-slate-200"></div>
+          <button className="flex items-center justify-center sm:justify-start space-x-2 text-slate-500 text-sm px-2 hover:text-brand-600 font-medium transition-colors">
+              <Filter size={16} /> <span>Filter</span>
+          </button>
       </div>
 
       <div className="space-y-4">
@@ -94,31 +98,35 @@ export const Loans = () => {
             return (
                 <div key={loan.id} className={`bg-white rounded-2xl border transition-all duration-300 overflow-visible ${isExpanded ? 'shadow-lg border-brand-200 ring-1 ring-brand-100' : 'shadow-soft border-slate-100 hover:border-slate-200'}`}>
                     <div 
-                        className="p-6 flex items-center justify-between cursor-pointer relative"
+                        className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between cursor-pointer relative gap-4 sm:gap-0"
                         onClick={() => setExpandedLoan(isExpanded ? null : loan.id)}
                     >
-                        <div className="flex items-center space-x-5">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                        <div className="flex items-center space-x-4 sm:space-x-5 flex-1 min-w-0">
+                            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${
                                 loan.status === LoanStatus.PAID ? 'bg-emerald-100 text-emerald-600' : 
                                 loan.status === LoanStatus.OVERDUE ? 'bg-rose-100 text-rose-600' : 
                                 'bg-brand-100 text-brand-600'
                             }`}>
-                                <DollarSign size={24} strokeWidth={2.5} />
+                                <DollarSign size={20} strokeWidth={2.5} />
                             </div>
-                            <div>
-                                <h3 className="font-bold text-slate-900 text-lg">{borrower?.name || 'Unknown Borrower'}</h3>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{borrower?.name || 'Unknown Borrower'}</h3>
                                 <div className="flex items-center space-x-2 text-sm text-slate-500 mt-1 font-medium">
                                     <Calendar size={14} />
                                     <span>Due {new Date(loan.dueDate).toLocaleDateString()}</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center space-x-8">
+                        <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
+                            <div className="text-right block sm:hidden">
+                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Balance</p>
+                                <p className="text-lg sm:text-xl font-bold text-slate-900">R{loan.balance.toFixed(2)}</p>
+                            </div>
                             <div className="text-right hidden sm:block">
                                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Balance</p>
                                 <p className="text-xl font-bold text-slate-900">R{loan.balance.toFixed(2)}</p>
                             </div>
-                            <div className={`px-4 py-1.5 rounded-full text-xs font-bold border ${
+                            <div className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs font-bold border ${
                                 loan.status === LoanStatus.OVERDUE ? 'bg-rose-50 text-rose-600 border-rose-100' :
                                 loan.status === LoanStatus.PAID ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
                                 'bg-brand-50 text-brand-600 border-brand-100'
@@ -139,7 +147,7 @@ export const Loans = () => {
                                     <MoreHorizontal size={20} />
                                 </button>
                                 {activeMenu === loan.id && (
-                                    <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-1">
+                                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-1">
                                         <button type="button" onClick={(e) => { e.stopPropagation(); setEditDueLoan({ id: loan.id, dueDate: loan.dueDate }); setActiveMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                                             <Calendar size={14} /> Edit Due Date
                                         </button>
@@ -153,8 +161,8 @@ export const Loans = () => {
                     </div>
 
                     {isExpanded && (
-                        <div className="bg-slate-50 p-8 border-t border-slate-100">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="bg-slate-50 p-4 sm:p-8 border-t border-slate-100">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
                                 <div>
                                     <h4 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
                                         <div className="w-1 h-6 bg-brand-500 rounded-full"></div>
@@ -186,7 +194,7 @@ export const Loans = () => {
                                     
                                     <div className="mt-8">
                                         <h4 className="font-bold text-slate-900 mb-4">Record Payment</h4>
-                                        <div className="flex gap-3">
+                                        <div className="flex flex-col sm:flex-row gap-3">
                                             <div className="flex-1 relative">
                                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 font-bold text-sm">R</div>
                                                 <input 
@@ -197,21 +205,23 @@ export const Loans = () => {
                                                     onChange={(e) => setPaymentAmount(e.target.value)}
                                                 />
                                             </div>
-                                            <select 
-                                                className="border border-slate-200 rounded-xl p-3 bg-white outline-none text-slate-900 focus:ring-2 focus:ring-emerald-100"
-                                                value={paymentMethod}
-                                                onChange={(e) => setPaymentMethod(e.target.value as any)}
-                                            >
-                                                <option value="CASH">Cash</option>
-                                                <option value="TRANSFER">Transfer</option>
-                                            </select>
-                                            <button 
-                                                onClick={() => handlePayment(loan.id)}
-                                                disabled={loan.status === LoanStatus.PAID}
-                                                className="bg-emerald-600 text-white px-6 rounded-xl hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg shadow-emerald-500/20 transition-all"
-                                            >
-                                                Pay
-                                            </button>
+                                            <div className="flex gap-3">
+                                                <select 
+                                                    className="border border-slate-200 rounded-xl p-3 bg-white outline-none text-slate-900 focus:ring-2 focus:ring-emerald-100 min-w-[120px]"
+                                                    value={paymentMethod}
+                                                    onChange={(e) => setPaymentMethod(e.target.value as any)}
+                                                >
+                                                    <option value="CASH">Cash</option>
+                                                    <option value="TRANSFER">Transfer</option>
+                                                </select>
+                                                <button 
+                                                    onClick={() => handlePayment(loan.id)}
+                                                    disabled={loan.status === LoanStatus.PAID}
+                                                    className="bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg shadow-emerald-500/20 transition-all whitespace-nowrap"
+                                                >
+                                                    Pay
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     
@@ -250,8 +260,8 @@ export const Loans = () => {
                                         Payment History
                                     </h4>
                                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
-                                        <div className="overflow-y-auto max-h-48">
-                                            <table className="w-full text-sm text-left">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm text-left min-w-[300px]">
                                                 <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-100">
                                                     <tr>
                                                         <th className="p-4 font-semibold text-xs uppercase tracking-wider">Date</th>
@@ -288,7 +298,7 @@ export const Loans = () => {
 
                                     <div>
                                         <h4 className="font-bold text-slate-900 mb-4">Smart Actions</h4>
-                                        <div className="flex gap-3">
+                                        <div className="flex flex-col sm:flex-row gap-3">
                                             <button 
                                                 onClick={() => handleGenerateMessage(loan)}
                                                 className="flex-1 border border-brand-200 text-brand-700 bg-brand-50 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2 shadow-sm"
