@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { User } from '@supabase/supabase-js';
 import { CheckSquare } from 'lucide-react';
@@ -10,6 +10,10 @@ interface AuthContextType {
   loading: boolean;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resetActivityTimer: () => void;
+  timeUntilLogout: number;
+  showLogoutWarning: boolean;
+  extendSession: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,6 +22,51 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Auto-logout state
+  const [timeUntilLogout, setTimeUntilLogout] = useState(20 * 60 * 1000); // 20 minutes in milliseconds
+  const [showLogoutWarning, setShowLogoutWarning] = useState(false);
+  const logoutTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+
+  const AUTO_LOGOUT_TIME = 20 * 60 * 1000; // 20 minutes
+  const WARNING_TIME = 2 * 60 * 1000; // Show warning 2 minutes before logout
+
+  // Activity tracking functions
+  const resetActivityTimer = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    setTimeUntilLogout(AUTO_LOGOUT_TIME);
+    setShowLogoutWarning(false);
+
+    // Clear existing timers
+    if (logoutTimerRef.current) {
+      clearTimeout(logoutTimerRef.current);
+    }
+    if (warningTimerRef.current) {
+      clearTimeout(warningTimerRef.current);
+    }
+
+    // Set new timers if user is logged in
+    if (user) {
+      warningTimerRef.current = setTimeout(() => {
+        setShowLogoutWarning(true);
+      }, AUTO_LOGOUT_TIME - WARNING_TIME);
+
+      logoutTimerRef.current = setTimeout(async () => {
+        await logout();
+      }, AUTO_LOGOUT_TIME);
+    }
+  }, [user]);
+
+  const extendSession = useCallback(() => {
+    resetActivityTimer();
+  }, [resetActivityTimer]);
+
+  // Activity event handlers
+  const handleActivity = useCallback(() => {
+    resetActivityTimer();
+  }, [resetActivityTimer]);
 
   const fetchUserProfile = async (uid: string) => {
     try {
@@ -78,6 +127,55 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Activity tracking effect
+  useEffect(() => {
+    if (!user) {
+      // Clear timers when user logs out
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+      setShowLogoutWarning(false);
+      return;
+    }
+
+    // Start activity timer when user logs in
+    resetActivityTimer();
+
+    // Add activity event listeners
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, true);
+    });
+
+    // Update countdown timer every second
+    const countdownInterval = setInterval(() => {
+      const elapsed = Date.now() - lastActivityRef.current;
+      const remaining = Math.max(0, AUTO_LOGOUT_TIME - elapsed);
+      setTimeUntilLogout(remaining);
+
+      if (remaining <= WARNING_TIME && !showLogoutWarning) {
+        setShowLogoutWarning(true);
+      }
+    }, 1000);
+
+    return () => {
+      // Cleanup
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity, true);
+      });
+      clearInterval(countdownInterval);
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+    };
+  }, [user, resetActivityTimer, handleActivity, showLogoutWarning]);
+
   const logout = async () => {
     if (isSupabaseConfigured) {
         await supabase.auth.signOut();
@@ -107,7 +205,17 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, userProfile, loading, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      userProfile, 
+      loading, 
+      logout, 
+      refreshProfile,
+      resetActivityTimer,
+      timeUntilLogout,
+      showLogoutWarning,
+      extendSession
+    }}>
       {children}
     </AuthContext.Provider>
   );

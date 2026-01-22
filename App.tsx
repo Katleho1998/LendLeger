@@ -9,6 +9,7 @@ import { Loans } from './pages/Loans';
 import { Reports } from './pages/Reports';
 import { Login } from './pages/Login';
 import { Profile } from './pages/Profile';
+import { AutoLogoutWarning } from './components/AutoLogoutWarning';
 
 const AuditPage = () => {
     const { auditLogs } = useStore();
@@ -76,6 +77,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   return (
     <AuthProvider>
+      <AutoLogoutWarning />
       <StoreProvider>
         <HashRouter>
           <Routes>
