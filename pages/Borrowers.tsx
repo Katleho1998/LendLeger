@@ -3,9 +3,13 @@ import { useStore } from '../services/storage';
 import { Plus, Search, Phone, CreditCard, AlertTriangle, MessageSquare, User, MoreHorizontal, FileText, X, Trash2, Edit } from 'lucide-react';
 import { Borrower, RiskLevel } from '../types';
 import { analyzeBorrowerRisk } from '../services/geminiService';
+import { useAuth } from '../context/AuthContext';
 
 export const Borrowers = () => {
   const { borrowers, addBorrower, deleteBorrower, updateBorrower, loans, searchTerm, setSearchTerm } = useStore();
+  const { user } = useAuth();
+  // Data is shared across all users, but edits/deletes are owner-only (enforced by Supabase RLS).
+  const isOwner = (b: Borrower) => !b.userId || b.userId === user?.id;
   const [isModalOpen, setModalOpen] = useState(false);
   const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
   const [aiAnalysis, setAiAnalysis] = useState<string>('');
@@ -139,12 +143,18 @@ export const Borrowers = () => {
                     </button>
                     {activeMenu === borrower.id && (
                         <div className="absolute right-0 top-8 w-32 bg-white rounded-xl shadow-xl border border-slate-100 z-10 py-1">
-                            <button type="button" onClick={() => handleEdit(borrower)} className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2">
-                                <Edit size={14} /> Edit
-                            </button>
-                            <button type="button" onClick={() => handleDelete(borrower.id)} className="w-full text-left px-4 py-2 text-sm text-rose-500 hover:bg-rose-50 flex items-center gap-2">
-                                <Trash2 size={14} /> Delete
-                            </button>
+                            {isOwner(borrower) ? (
+                                <>
+                                    <button type="button" onClick={() => handleEdit(borrower)} className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                                        <Edit size={14} /> Edit
+                                    </button>
+                                    <button type="button" onClick={() => handleDelete(borrower.id)} className="w-full text-left px-4 py-2 text-sm text-rose-500 hover:bg-rose-50 flex items-center gap-2">
+                                        <Trash2 size={14} /> Delete
+                                    </button>
+                                </>
+                            ) : (
+                                <span className="block px-4 py-2 text-xs text-slate-400">Created by another user</span>
+                            )}
                         </div>
                     )}
                 </div>
@@ -267,7 +277,9 @@ export const Borrowers = () => {
                   </div>
 
                   <div className="flex justify-between items-center pt-4 border-t border-slate-50">
-                      <button onClick={() => handleDeleteFromModal(selectedBorrower.id)} className="text-rose-500 text-sm font-semibold hover:text-rose-700 px-2 transition-colors">Delete Profile</button>
+                      {isOwner(selectedBorrower) ? (
+                          <button onClick={() => handleDeleteFromModal(selectedBorrower.id)} className="text-rose-500 text-sm font-semibold hover:text-rose-700 px-2 transition-colors">Delete Profile</button>
+                      ) : <span></span>}
                       <button onClick={() => setSelectedBorrower(null)} className="px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-medium shadow-lg shadow-slate-900/20 transition-all">Close</button>
                   </div>
               </div>

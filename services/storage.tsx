@@ -42,22 +42,26 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     if (!user) return;
     
     try {
-        const { data: bData, error: bError } = await supabase.from('borrowers').select('*').eq('user_id', user.id);
+        // Shared read: fetch ALL records regardless of who created them (no user_id filter).
+        // Write access remains owner-only, enforced by Supabase RLS policies.
+        const { data: bData, error: bError } = await supabase.from('borrowers').select('*');
         if (bError) throw bError;
         setBorrowers(bData.map((d: any) => ({
-             id: d.id, 
-             name: d.name, 
-             phone: d.phone, 
-             idNumber: d.id_number, 
-             notes: d.notes, 
-             riskLevel: d.risk_level, 
-             createdAt: d.created_at 
+             id: d.id,
+             userId: d.user_id,
+             name: d.name,
+             phone: d.phone,
+             idNumber: d.id_number,
+             notes: d.notes,
+             riskLevel: d.risk_level,
+             createdAt: d.created_at
         })));
 
-        const { data: lData, error: lError } = await supabase.from('loans').select('*').eq('user_id', user.id);
+        const { data: lData, error: lError } = await supabase.from('loans').select('*');
         if (lError) throw lError;
         setLoans(lData.map((d: any) => ({
             id: d.id,
+            userId: d.user_id,
             borrowerId: d.borrower_id,
             principal: d.principal,
             interestRate: d.interest_rate,
@@ -69,12 +73,12 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
             status: d.status,
             balance: d.balance,
             totalRepayment: d.total_repayment,
-            payments: d.payments || [], 
+            payments: d.payments || [],
             logs: [],
             signature: d.signature
         })));
 
-        const { data: aData, error: aError } = await supabase.from('audit_logs').select('*').eq('user_id', user.id).order('timestamp', { ascending: false });
+        const { data: aData, error: aError } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
         if (aError) throw aError;
         setAuditLogs(aData as AuditLog[]);
         
@@ -103,20 +107,21 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
 
     fetchData();
 
+    // No user_id filter here: everyone's changes should be reflected for everyone (shared read).
     const channels = supabase.channel('custom-all-channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'borrowers', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'borrowers' },
         () => fetchData()
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'loans', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'loans' },
         () => fetchData()
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'audit_logs', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'audit_logs' },
         () => fetchData()
       )
       .subscribe();
@@ -163,13 +168,14 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       // Optimistic update
       if (newBorrower) {
         setBorrowers(prev => [...prev, {
-             id: newBorrower.id, 
-             name: newBorrower.name, 
-             phone: newBorrower.phone, 
-             idNumber: newBorrower.id_number, 
-             notes: newBorrower.notes, 
-             riskLevel: newBorrower.risk_level, 
-             createdAt: newBorrower.created_at 
+             id: newBorrower.id,
+             userId: newBorrower.user_id,
+             name: newBorrower.name,
+             phone: newBorrower.phone,
+             idNumber: newBorrower.id_number,
+             notes: newBorrower.notes,
+             riskLevel: newBorrower.risk_level,
+             createdAt: newBorrower.created_at
         }]);
       }
 
@@ -189,9 +195,15 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
         if (data.notes) dbData.notes = data.notes;
         if (data.riskLevel) dbData.risk_level = data.riskLevel;
 
-        const { error } = await supabase.from('borrowers').update(dbData).eq('id', id);
+        // Writes are owner-only (RLS). A denied update returns 0 rows rather than an error,
+        // so check the returned rows to detect that case instead of trusting it silently.
+        const { data: updated, error } = await supabase.from('borrowers').update(dbData).eq('id', id).select();
         if (error) throw error;
-        
+        if (!updated || updated.length === 0) {
+            alert("You can only edit borrowers you created.");
+            return;
+        }
+
         // Manual state update
         setBorrowers(prev => prev.map(b => b.id === id ? { ...b, ...data } : b));
 
@@ -204,21 +216,32 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
   const deleteBorrower = async (id: string) => {
     try {
       const b = borrowers.find(x => x.id === id);
-      
+
+      if (b?.userId && user && b.userId !== user.id) {
+          alert("You can only delete borrowers you created.");
+          return;
+      }
+
       // 1. Manually delete associated loans first to prevent FK constraint errors
+      // (only loans this user owns will actually be removed; RLS blocks the rest)
       const { error: loanError } = await supabase.from('loans').delete().eq('borrower_id', id);
       if (loanError) {
           console.error("Error cleaning up borrower loans:", loanError);
       }
 
-      // 2. Delete the borrower
-      const { error } = await supabase.from('borrowers').delete().eq('id', id);
+      // 2. Delete the borrower (owner-only per RLS)
+      const { data: deleted, error } = await supabase.from('borrowers').delete().eq('id', id).select();
       if (error) throw error;
-      
+      if (!deleted || deleted.length === 0) {
+          alert("You can only delete borrowers you created.");
+          fetchData(); // Re-sync in case the loan cleanup above partially ran
+          return;
+      }
+
       // 3. Update state immediately
       setBorrowers(prev => prev.filter(item => item.id !== id));
       setLoans(prev => prev.filter(l => l.borrowerId !== id));
-      
+
       logAction('DELETE_BORROWER', `Deleted borrower ${b?.name || 'Unknown'}`, id);
     } catch (e: any) {
       console.error("Error deleting borrower", e);
@@ -274,6 +297,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       if (newLoan) {
           setLoans(prev => [...prev, {
             id: newLoan.id,
+            userId: newLoan.user_id,
             borrowerId: newLoan.borrower_id,
             principal: newLoan.principal,
             interestRate: newLoan.interest_rate,
@@ -325,6 +349,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
           if (!retryError && newLoan) {
             setLoans(prev => [...prev, {
               id: newLoan.id,
+              userId: newLoan.user_id,
               borrowerId: newLoan.borrower_id,
               principal: newLoan.principal,
               interestRate: newLoan.interest_rate,
@@ -355,8 +380,12 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
 
   const deleteLoan = async (id: string) => {
       try {
-          const { error } = await supabase.from('loans').delete().eq('id', id);
+          const { data: deleted, error } = await supabase.from('loans').delete().eq('id', id).select();
           if (error) throw error;
+          if (!deleted || deleted.length === 0) {
+              alert("You can only delete loans you created.");
+              return;
+          }
           setLoans(prev => prev.filter(l => l.id !== id));
           logAction('DELETE_LOAN', `Deleted Loan ID ${id.substring(0,6)}`, id);
       } catch (e: any) {
@@ -382,14 +411,18 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     const newPayments = [...loan.payments, payment];
 
     try {
-      const { error } = await supabase.from('loans').update({
+      const { data: updated, error } = await supabase.from('loans').update({
         balance: newBalance,
         status: newStatus,
         payments: newPayments
-      }).eq('id', loanId);
+      }).eq('id', loanId).select();
 
       if (error) throw error;
-      
+      if (!updated || updated.length === 0) {
+          alert("You can only record payments on loans you created.");
+          return;
+      }
+
       setLoans(prev => prev.map(l => l.id === loanId ? { ...l, balance: newBalance, status: newStatus, payments: newPayments } : l));
       logAction('PAYMENT', `Received payment of R${amount}`, loanId);
     } catch (e) {
@@ -400,10 +433,13 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
 
   const recalculateLoans = async () => {
     const now = new Date();
-    
+
     loans.forEach(async (l) => {
       if (l.status === LoanStatus.PAID || l.status === LoanStatus.DEFAULTED) return;
-      
+      // Writes are owner-only (RLS): skip loans this user doesn't own so we don't
+      // attempt a write that will be silently rejected, or desync local state from the DB.
+      if (l.userId && user && l.userId !== user.id) return;
+
       const dueDate = new Date(l.dueDate);
       
       if (now > dueDate) {
@@ -461,9 +497,13 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
 
   const updateLoanDueDate = async (loanId: string, newDueDate: string) => {
     try {
-      // Write to DB
-      const { error } = await supabase.from('loans').update({ due_date: newDueDate }).eq('id', loanId);
+      // Write to DB (owner-only per RLS)
+      const { data: updated, error } = await supabase.from('loans').update({ due_date: newDueDate }).eq('id', loanId).select();
       if (error) throw error;
+      if (!updated || updated.length === 0) {
+          alert("You can only edit the due date on loans you created.");
+          return;
+      }
 
       // Update local state
       setLoans(prev => prev.map(l => l.id === loanId ? { ...l, dueDate: newDueDate } : l));

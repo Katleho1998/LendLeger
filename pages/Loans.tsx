@@ -5,9 +5,13 @@ import { EditDueDateModal } from '../components/EditDueDateModal';
 import { Loan, LoanStatus } from '../types';
 import { generateCollectionMessage } from '../services/geminiService';
 import { CreateLoanModal } from '../components/CreateLoanModal';
+import { useAuth } from '../context/AuthContext';
 
 export const Loans = () => {
     const { borrowers, loans, addPayment, searchTerm, setSearchTerm, deleteLoan, updateLoanDueDate } = useStore();
+    const { user } = useAuth();
+    // Data is shared across all users, but edits/payments/deletes are owner-only (enforced by Supabase RLS).
+    const isOwner = (l: Loan) => !l.userId || l.userId === user?.id;
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -148,12 +152,18 @@ export const Loans = () => {
                                 </button>
                                 {activeMenu === loan.id && (
                                     <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-1">
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); setEditDueLoan({ id: loan.id, dueDate: loan.dueDate }); setActiveMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                            <Calendar size={14} /> Edit Due Date
-                                        </button>
-                                        <button type="button" onClick={(e) => handleDeleteLoan(e, loan.id)} className="w-full text-left px-4 py-2 text-sm text-rose-500 hover:bg-rose-50 flex items-center gap-2">
-                                            <Trash2 size={14} /> Delete
-                                        </button>
+                                        {isOwner(loan) ? (
+                                            <>
+                                                <button type="button" onClick={(e) => { e.stopPropagation(); setEditDueLoan({ id: loan.id, dueDate: loan.dueDate }); setActiveMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                                    <Calendar size={14} /> Edit Due Date
+                                                </button>
+                                                <button type="button" onClick={(e) => handleDeleteLoan(e, loan.id)} className="w-full text-left px-4 py-2 text-sm text-rose-500 hover:bg-rose-50 flex items-center gap-2">
+                                                    <Trash2 size={14} /> Delete
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span className="block px-4 py-2 text-xs text-slate-400">Created by another user</span>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -194,19 +204,20 @@ export const Loans = () => {
                                     
                                     <div className="mt-8">
                                         <h4 className="font-bold text-slate-900 mb-4">Record Payment</h4>
+                                        {isOwner(loan) ? (
                                         <div className="flex flex-col sm:flex-row gap-3">
                                             <div className="flex-1 relative">
                                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 font-bold text-sm">R</div>
-                                                <input 
-                                                    type="number" 
-                                                    placeholder="0.00" 
+                                                <input
+                                                    type="number"
+                                                    placeholder="0.00"
                                                     className="w-full pl-8 border border-slate-200 rounded-xl p-3 bg-white outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-300 text-slate-900 placeholder-slate-400 transition-all"
                                                     value={paymentAmount}
                                                     onChange={(e) => setPaymentAmount(e.target.value)}
                                                 />
                                             </div>
                                             <div className="flex gap-3">
-                                                <select 
+                                                <select
                                                     className="border border-slate-200 rounded-xl p-3 bg-white outline-none text-slate-900 focus:ring-2 focus:ring-emerald-100 min-w-[120px]"
                                                     value={paymentMethod}
                                                     onChange={(e) => setPaymentMethod(e.target.value as any)}
@@ -214,7 +225,7 @@ export const Loans = () => {
                                                     <option value="CASH">Cash</option>
                                                     <option value="TRANSFER">Transfer</option>
                                                 </select>
-                                                <button 
+                                                <button
                                                     onClick={() => handlePayment(loan.id)}
                                                     disabled={loan.status === LoanStatus.PAID}
                                                     className="bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg shadow-emerald-500/20 transition-all whitespace-nowrap"
@@ -223,6 +234,9 @@ export const Loans = () => {
                                                 </button>
                                             </div>
                                         </div>
+                                        ) : (
+                                            <p className="text-sm text-slate-400 italic">Only the loan's creator can record payments.</p>
+                                        )}
                                     </div>
                                     
                                     {/* Signature Viewer */}
