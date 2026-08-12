@@ -1,20 +1,16 @@
 import React, { useState } from 'react';
 import { useStore } from '../services/storage';
-import { Plus, Search, Phone, CreditCard, AlertTriangle, MessageSquare, User, MoreHorizontal, FileText, X, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, Phone, CreditCard, AlertTriangle, User, MoreHorizontal, Trash2, Edit } from 'lucide-react';
 import { Borrower, RiskLevel } from '../types';
-import { analyzeBorrowerRisk } from '../services/geminiService';
 import { useAuth } from '../context/AuthContext';
 
 export const Borrowers = () => {
-  const { borrowers, addBorrower, deleteBorrower, updateBorrower, loans, searchTerm, setSearchTerm } = useStore();
+  const { borrowers, addBorrower, deleteBorrower, updateBorrower, searchTerm, setSearchTerm } = useStore();
   const { user } = useAuth();
   // Data is shared across all users, but edits/deletes are owner-only (enforced by Supabase RLS).
   const isOwner = (b: Borrower) => !b.userId || b.userId === user?.id;
   const [isModalOpen, setModalOpen] = useState(false);
-  const [selectedBorrower, setSelectedBorrower] = useState<Borrower | null>(null);
-  const [aiAnalysis, setAiAnalysis] = useState<string>('');
-  const [loadingAi, setLoadingAi] = useState(false);
-  
+
   // Menu State
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
@@ -66,27 +62,7 @@ export const Borrowers = () => {
       setActiveMenu(null);
   }
 
-  const handleDeleteFromModal = (id: string) => {
-      if(window.confirm("Are you sure you want to delete this borrower? This action cannot be undone.")) {
-          deleteBorrower(id);
-          setSelectedBorrower(null);
-      }
-  }
-
-  const handleAiAnalysis = async (borrower: Borrower) => {
-    setLoadingAi(true);
-    setAiAnalysis('');
-    const borrowerLoans = loans.filter(l => l.borrowerId === borrower.id);
-    const history = borrowerLoans.length > 0 
-        ? `${borrowerLoans.length} loans, ${borrowerLoans.filter(l => l.status === 'OVERDUE').length} overdue.` 
-        : "No loan history.";
-    
-    const result = await analyzeBorrowerRisk(borrower, history);
-    setAiAnalysis(result);
-    setLoadingAi(false);
-  };
-
-  const filteredBorrowers = borrowers.filter(b => 
+  const filteredBorrowers = borrowers.filter(b =>
     b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     b.phone.includes(searchTerm)
   );
@@ -182,15 +158,8 @@ export const Borrowers = () => {
               </div>
 
               <div className="pt-4 border-t border-slate-50 flex gap-2">
-                 <button 
-                    type="button"
-                    className="flex-1 bg-brand-50 text-brand-700 py-2.5 rounded-lg text-sm font-semibold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2"
-                    onClick={() => { setSelectedBorrower(borrower); handleAiAnalysis(borrower); }}
-                 >
-                    <MessageSquare size={16} /> Analysis
-                 </button>
-                 <a href={`tel:${borrower.phone}`} className="p-2.5 rounded-lg hover:bg-slate-50 text-slate-500 border border-slate-200 transition-colors">
-                    <Phone size={18} />
+                 <a href={`tel:${borrower.phone}`} className="flex-1 bg-brand-50 text-brand-700 py-2.5 rounded-lg text-sm font-semibold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2">
+                    <Phone size={16} /> Call Borrower
                  </a>
               </div>
             </div>
@@ -241,49 +210,6 @@ export const Borrowers = () => {
             </form>
           </div>
         </div>
-      )}
-
-      {/* AI Analysis Modal */}
-      {selectedBorrower && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl p-8 w-full max-w-lg relative shadow-2xl">
-                  <button onClick={() => setSelectedBorrower(null)} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-50 p-1 rounded-full transition-colors"><X size={20} /></button>
-                  
-                  <div className="flex items-center space-x-4 mb-6">
-                      <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-600">
-                          <User size={28} />
-                      </div>
-                      <div>
-                          <h3 className="text-xl font-bold text-slate-900">{selectedBorrower.name}</h3>
-                          <p className="text-slate-500 text-sm font-medium">Risk Assessment Profile</p>
-                      </div>
-                  </div>
-                  
-                  <div className="mb-8">
-                      <h4 className="font-bold text-slate-800 flex items-center gap-2 mb-3">
-                        <MessageSquare size={18} className="text-brand-500" /> 
-                        Gemini AI Analysis
-                      </h4>
-                      <div className="bg-slate-50 p-5 rounded-2xl text-slate-600 border border-slate-200 leading-relaxed">
-                          {loadingAi ? (
-                              <div className="flex items-center space-x-3 py-4">
-                                  <div className="animate-spin h-5 w-5 border-2 border-brand-500 border-t-transparent rounded-full"></div>
-                                  <span className="font-medium text-slate-500">Analyzing borrower behavior...</span>
-                              </div>
-                          ) : (
-                              <p>{aiAnalysis}</p>
-                          )}
-                      </div>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-4 border-t border-slate-50">
-                      {isOwner(selectedBorrower) ? (
-                          <button onClick={() => handleDeleteFromModal(selectedBorrower.id)} className="text-rose-500 text-sm font-semibold hover:text-rose-700 px-2 transition-colors">Delete Profile</button>
-                      ) : <span></span>}
-                      <button onClick={() => setSelectedBorrower(null)} className="px-6 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 font-medium shadow-lg shadow-slate-900/20 transition-all">Close</button>
-                  </div>
-              </div>
-          </div>
       )}
     </div>
   );

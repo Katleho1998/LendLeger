@@ -12,7 +12,6 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@google/genai": "^1.31.0",
     "@supabase/supabase-js": "^2.39.0",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",

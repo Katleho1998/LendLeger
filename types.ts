@@ -31,6 +31,7 @@ export interface UserProfile {
 export interface Borrower {
   id: string;
   userId?: string; // Owner (creator) of this record - used for shared-read/owner-write access control
+  creatorName?: string; // Resolved display name/email of the owner, for "Created by" UI
   name: string;
   phone: string;
   idNumber: string;
@@ -53,6 +54,7 @@ export interface Payment {
 export interface Loan {
   id: string;
   userId?: string; // Owner (creator) of this record - used for shared-read/owner-write access control
+  creatorName?: string; // Resolved display name/email of the owner, for "Created by" UI
   borrowerId: string;
   principal: number;
   interestRate: number; // Percentage

@@ -23,7 +23,8 @@ interface StoreContextType {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const myName = userProfile?.displayName || user?.email?.split('@')[0];
   const [borrowers, setBorrowers] = useState<Borrower[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -44,11 +45,24 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     try {
         // Shared read: fetch ALL records regardless of who created them (no user_id filter).
         // Write access remains owner-only, enforced by Supabase RLS policies.
+
+        // Resolve creator user_id -> display name, so cards can show "Created by X".
+        // Requires the profiles table to also have a shared-read RLS policy (see supabase/rls-shared-read.sql).
+        const { data: pData, error: pError } = await supabase.from('profiles').select('id, display_name, email');
+        if (pError) console.error("Error fetching profiles for creator names:", pError);
+        const creatorNameOf = (userId: string | null | undefined): string | undefined => {
+            if (!userId || !pData) return undefined;
+            const p = pData.find((row: any) => row.id === userId);
+            if (!p) return undefined;
+            return p.display_name || p.email?.split('@')[0];
+        };
+
         const { data: bData, error: bError } = await supabase.from('borrowers').select('*');
         if (bError) throw bError;
         setBorrowers(bData.map((d: any) => ({
              id: d.id,
              userId: d.user_id,
+             creatorName: creatorNameOf(d.user_id),
              name: d.name,
              phone: d.phone,
              idNumber: d.id_number,
@@ -62,6 +76,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
         setLoans(lData.map((d: any) => ({
             id: d.id,
             userId: d.user_id,
+            creatorName: creatorNameOf(d.user_id),
             borrowerId: d.borrower_id,
             principal: d.principal,
             interestRate: d.interest_rate,
@@ -170,6 +185,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
         setBorrowers(prev => [...prev, {
              id: newBorrower.id,
              userId: newBorrower.user_id,
+             creatorName: myName,
              name: newBorrower.name,
              phone: newBorrower.phone,
              idNumber: newBorrower.id_number,
@@ -298,6 +314,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
           setLoans(prev => [...prev, {
             id: newLoan.id,
             userId: newLoan.user_id,
+            creatorName: myName,
             borrowerId: newLoan.borrower_id,
             principal: newLoan.principal,
             interestRate: newLoan.interest_rate,
@@ -350,6 +367,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
             setLoans(prev => [...prev, {
               id: newLoan.id,
               userId: newLoan.user_id,
+              creatorName: myName,
               borrowerId: newLoan.borrower_id,
               principal: newLoan.principal,
               interestRate: newLoan.interest_rate,

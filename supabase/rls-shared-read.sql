@@ -97,3 +97,18 @@ create policy "audit_logs_insert_own"
   on public.audit_logs for insert
   to authenticated
   with check (auth.uid() = user_id);
+
+-- =========================
+-- PROFILES
+-- (shared read so a loan/borrower's "Created by" name resolves for every user;
+-- each user can still only insert/update their OWN profile row - that existing
+-- policy is left alone, we're only adding the missing shared-read policy)
+-- =========================
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles_select_all_authenticated" on public.profiles;
+
+create policy "profiles_select_all_authenticated"
+  on public.profiles for select
+  to authenticated
+  using (true);

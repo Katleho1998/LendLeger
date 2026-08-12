@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useStore } from '../services/storage';
-import { Plus, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Plus, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, Trash2, User } from 'lucide-react';
 import { EditDueDateModal } from '../components/EditDueDateModal';
 import { Loan, LoanStatus } from '../types';
-import { generateCollectionMessage } from '../services/geminiService';
 import { CreateLoanModal } from '../components/CreateLoanModal';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,25 +20,10 @@ export const Loans = () => {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'TRANSFER' | 'OTHER'>('CASH');
 
-  // AI Message State
-  const [generatedMessage, setGeneratedMessage] = useState<string | null>(null);
-  const [generatingMsg, setGeneratingMsg] = useState(false);
-
   const handlePayment = (loanId: string) => {
     if (!paymentAmount) return;
     addPayment(loanId, parseFloat(paymentAmount), paymentMethod);
     setPaymentAmount('');
-  };
-
-  const handleGenerateMessage = async (loan: Loan) => {
-      setGeneratingMsg(true);
-      setGeneratedMessage(null);
-      const borrower = borrowers.find(b => b.id === loan.borrowerId);
-      if (borrower) {
-        const msg = await generateCollectionMessage(borrower, loan, loan.status === 'OVERDUE' ? 'FIRM' : 'FRIENDLY');
-        setGeneratedMessage(msg);
-      }
-      setGeneratingMsg(false);
   };
 
   const filteredLoans = loans.filter(l => {
@@ -119,6 +103,10 @@ export const Loans = () => {
                                     <Calendar size={14} />
                                     <span>Due {new Date(loan.dueDate).toLocaleDateString()}</span>
                                 </div>
+                                <div className="flex items-center space-x-2 text-xs text-slate-400 mt-0.5 font-medium">
+                                    <User size={12} />
+                                    <span>Created by {isOwner(loan) ? 'you' : (loan.creatorName || 'another user')}</span>
+                                </div>
                             </div>
                         </div>
                         <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
@@ -180,7 +168,11 @@ export const Loans = () => {
                                     </h4>
                                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-slate-500 font-medium">Principal Amount</span> 
+                                            <span className="text-slate-500 font-medium">Created By</span>
+                                            <span className="font-semibold text-slate-700">{isOwner(loan) ? 'You' : (loan.creatorName || 'Another user')}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm">
+                                            <span className="text-slate-500 font-medium">Principal Amount</span>
                                             <span className="font-semibold text-slate-700">R{loan.principal.toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center text-sm">
@@ -311,25 +303,12 @@ export const Loans = () => {
                                     </div>
 
                                     <div>
-                                        <h4 className="font-bold text-slate-900 mb-4">Smart Actions</h4>
+                                        <h4 className="font-bold text-slate-900 mb-4">Quick Actions</h4>
                                         <div className="flex flex-col sm:flex-row gap-3">
-                                            <button 
-                                                onClick={() => handleGenerateMessage(loan)}
-                                                className="flex-1 border border-brand-200 text-brand-700 bg-brand-50 px-4 py-3 rounded-xl text-sm font-semibold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                                            >
-                                                {generatingMsg ? 'Thinking...' : '⚡ Generate AI Reminder'}
-                                            </button>
                                             <a href={`tel:${borrower?.phone}`} className="flex-1 border border-slate-200 text-slate-700 bg-white px-4 py-3 rounded-xl text-sm font-semibold hover:bg-slate-50 text-center shadow-sm transition-colors">
                                                 Call Borrower
                                             </a>
                                         </div>
-                                        {generatedMessage && (
-                                            <div className="mt-4 p-4 bg-white border border-brand-200 rounded-2xl shadow-sm relative">
-                                                <div className="absolute -top-2 left-6 w-4 h-4 bg-white border-t border-l border-brand-200 transform rotate-45"></div>
-                                                <p className="font-bold text-brand-800 text-xs uppercase mb-2 tracking-wider">Generated Message</p>
-                                                <p className="text-slate-700 italic leading-relaxed">"{generatedMessage}"</p>
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
