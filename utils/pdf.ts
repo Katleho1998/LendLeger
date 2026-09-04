@@ -53,13 +53,23 @@ export const generateProfitLossPDF = (loans: Loan[]) => {
     body: [
       ['Total Principal Disbursed', `R ${m.totalPrincipal.toFixed(2)}`],
       ['Total Cash Collected', `R ${m.totalCollected.toFixed(2)}`],
-      ['Interest Earned (Realized)', `R ${m.totalInterestEarned.toFixed(2)}`],
-      ['Bad Debt Written Off', `-R ${m.totalWrittenOff.toFixed(2)}`],
+      ['Interest Earned (on open/paid loans)', `R ${m.totalInterestEarned.toFixed(2)}`],
+      ['Loss on Written-Off Loans', `${m.writeOffLoss >= 0 ? '' : '-'}R ${Math.abs(m.writeOffLoss).toFixed(2)}`],
       ['Net Profit', `R ${m.netProfit.toFixed(2)}`],
     ],
   });
 
-  const finalY = lastTableEndY(doc, 50);
+  let finalY = lastTableEndY(doc, 50);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(
+    `Written off loans: ${m.defaultedCount} loan(s), R ${m.totalWrittenOff.toFixed(2)} in unpaid balance forgiven in total`,
+    14,
+    finalY
+  );
+  doc.setTextColor(0);
+  finalY += 10;
+
   doc.setFontSize(11);
   doc.text(
     `Active: ${m.activeCount}   Overdue: ${m.overdueCount}   Paid: ${m.paidCount}   Written Off: ${m.defaultedCount}`,
@@ -138,6 +148,7 @@ export const generateCapitalPDF = (loans: Loan[], startingCapital: number) => {
 
   const m = computePortfolioMetrics(loans);
   const availableToLend = startingCapital - m.totalPrincipal + m.totalCollected;
+  const totalValue = startingCapital + m.netProfit;
 
   autoTable(doc, {
     startY: 40,
@@ -147,6 +158,7 @@ export const generateCapitalPDF = (loans: Loan[], startingCapital: number) => {
       ['Total Disbursed (Out)', `-R ${m.totalPrincipal.toFixed(2)}`],
       ['Total Collected (In)', `+R ${m.totalCollected.toFixed(2)}`],
       ['Available to Lend', `R ${availableToLend.toFixed(2)}`],
+      ['Total Value (Starting Capital + Net Profit)', `R ${totalValue.toFixed(2)}`],
     ],
   });
 

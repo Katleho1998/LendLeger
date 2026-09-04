@@ -65,7 +65,6 @@ export const Dashboard = () => {
       totalLent: m.totalPrincipal,
       totalCollected: m.totalCollected,
       outstanding: m.totalOutstanding,
-      realizedProfit: m.totalInterestEarned,
       netProfit: m.netProfit,
       overdueCount: m.overdueCount,
       overdueAmount: m.overdueAmount,
