@@ -51,7 +51,12 @@ export const Dashboard = () => {
   const capital = useMemo(() => {
     const m = computePortfolioMetrics(loans);
     const availableToLend = startingCapital - m.totalPrincipal + m.totalCollected;
-    return { disbursed: m.totalPrincipal, collected: m.totalCollected, availableToLend };
+    // Total Value: what the business is actually worth right now -- the starting
+    // capital plus every rand of profit banked so far (interest earned, net of any
+    // bad debt written off). This is how the capital has grown, not just cash on hand.
+    const totalValue = startingCapital + m.netProfit;
+    const growthPercent = startingCapital > 0 ? (m.netProfit / startingCapital) * 100 : null;
+    return { disbursed: m.totalPrincipal, collected: m.totalCollected, availableToLend, netProfit: m.netProfit, totalValue, growthPercent };
   }, [loans, startingCapital]);
 
   const metrics = useMemo(() => {
@@ -133,6 +138,15 @@ export const Dashboard = () => {
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Collected</p>
               <p className="text-lg font-bold text-white mt-0.5">+R{capital.collected.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Value</p>
+              <p className="text-lg font-bold text-emerald-400 mt-0.5">R{capital.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+              {capital.growthPercent !== null && (
+                <p className={`text-[11px] font-semibold mt-0.5 ${capital.growthPercent >= 0 ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
+                  {capital.growthPercent >= 0 ? '+' : ''}{capital.growthPercent.toFixed(1)}% since start
+                </p>
+              )}
             </div>
           </div>
         </div>
