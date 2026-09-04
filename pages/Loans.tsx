@@ -213,24 +213,42 @@ export const Loans = () => {
                                         </div>
                                     </div>
 
-                                    {loan.status === LoanStatus.DEFAULTED && (
-                                        <div className="mt-6 bg-slate-100 border border-slate-200 rounded-2xl p-4">
-                                            <h4 className="font-bold text-slate-700 flex items-center gap-2 mb-2">
-                                                <Ban size={16} className="text-slate-500" /> Written Off
-                                            </h4>
-                                            <div className="flex justify-between items-center text-sm mb-1">
-                                                <span className="text-slate-500 font-medium">Amount Lost</span>
-                                                <span className="font-bold text-slate-700">R{(loan.writeOffAmount || 0).toFixed(2)}</span>
+                                    {loan.status === LoanStatus.DEFAULTED && (() => {
+                                        // How much cash actually came back on this specific loan before it was
+                                        // written off (same real-cash rule used portfolio-wide: PENALTY entries
+                                        // are a debt marker, not money received, so they're excluded here too).
+                                        const cashPaidOnLoan = loan.payments
+                                            .filter(p => p.method !== 'PENALTY')
+                                            .reduce((sum, p) => sum + p.amount, 0);
+                                        const capitalLost = Math.max(0, loan.principal - cashPaidOnLoan);
+                                        return (
+                                            <div className="mt-6 bg-slate-100 border border-slate-200 rounded-2xl p-4">
+                                                <h4 className="font-bold text-slate-700 flex items-center gap-2 mb-2">
+                                                    <Ban size={16} className="text-slate-500" /> Written Off
+                                                </h4>
+                                                <div className="flex justify-between items-center text-sm mb-1">
+                                                    <span className="text-slate-500 font-medium">Balance Forgiven</span>
+                                                    <span className="font-semibold text-slate-600">R{(loan.writeOffAmount || 0).toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm mb-1">
+                                                    <span className="text-slate-500 font-medium">Capital Lost</span>
+                                                    <span className={`font-bold ${capitalLost > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                        R{capitalLost.toFixed(2)}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm mb-1">
+                                                    <span className="text-slate-500 font-medium">Date</span>
+                                                    <span className="font-semibold text-slate-600">{loan.writeOffDate ? new Date(loan.writeOffDate).toLocaleDateString() : '-'}</span>
+                                                </div>
+                                                {loan.writeOffReason && (
+                                                    <p className="text-xs text-slate-500 mt-2 italic">"{loan.writeOffReason}"</p>
+                                                )}
+                                                {capitalLost === 0 && (
+                                                    <p className="text-xs text-emerald-600 mt-2 font-medium">Full principal was recovered before the remaining balance was forgiven -- no capital was actually lost.</p>
+                                                )}
                                             </div>
-                                            <div className="flex justify-between items-center text-sm mb-1">
-                                                <span className="text-slate-500 font-medium">Date</span>
-                                                <span className="font-semibold text-slate-600">{loan.writeOffDate ? new Date(loan.writeOffDate).toLocaleDateString() : '-'}</span>
-                                            </div>
-                                            {loan.writeOffReason && (
-                                                <p className="text-xs text-slate-500 mt-2 italic">"{loan.writeOffReason}"</p>
-                                            )}
-                                        </div>
-                                    )}
+                                        );
+                                    })()}
 
                                     <div className="mt-8">
                                         <h4 className="font-bold text-slate-900 mb-4">Record Payment</h4>
