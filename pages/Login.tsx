@@ -90,7 +90,7 @@ export const Login = () => {
             <p className="text-slate-500 mt-2">Professional Informal Lending Management</p>
         </div>
 
-        <div className="bg-white p-8 rounded-3xl shadow-soft border border-slate-100">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-soft border border-slate-100">
            <div className="flex items-center justify-center mb-8 bg-slate-50 p-1 rounded-xl">
              <button 
                 onClick={() => { setIsLogin(true); setError(''); }}

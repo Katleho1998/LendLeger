@@ -18,7 +18,7 @@ export const EditDueDateModal = ({ isOpen, initialDate, onSave, onClose }: Props
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-2 sm:p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md">
         <h3 className="text-lg font-bold mb-3">Edit Due Date</h3>
         <p className="text-sm text-slate-500 mb-4">Select a new due date for this loan.</p>

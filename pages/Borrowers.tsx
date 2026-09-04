@@ -175,9 +175,9 @@ export const Borrowers = () => {
 
       {/* Add/Edit Borrower Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl transform transition-all scale-100">
-            <h3 className="text-2xl font-bold mb-6 text-slate-900">{editingId ? 'Edit Borrower' : 'New Borrower'}</h3>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 transition-opacity">
+          <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-md shadow-2xl transform transition-all scale-100 overflow-y-auto max-h-[95vh]">
+            <h3 className="text-xl sm:text-2xl font-bold mb-6 text-slate-900">{editingId ? 'Edit Borrower' : 'New Borrower'}</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>

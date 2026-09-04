@@ -168,7 +168,7 @@ export const Profile = () => {
 
         {/* Right Column: Edit Form */}
         <div className="lg:col-span-2">
-            <form onSubmit={handleSave} className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
+            <form onSubmit={handleSave} className="bg-white p-5 sm:p-8 rounded-2xl border border-slate-200 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
                     <User size={20} className="text-brand-600" />
                     Personal Information

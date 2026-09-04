@@ -13,9 +13,9 @@ import { computePortfolioMetrics } from '../utils/analytics';
 const SummaryTile = ({ label, value, tone }: { label: string; value: string; tone: 'neutral' | 'positive' | 'negative' }) => {
   const toneClass = tone === 'positive' ? 'text-emerald-600' : tone === 'negative' ? 'text-rose-600' : 'text-slate-900';
   return (
-    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">{label}</p>
-      <p className={`text-2xl font-bold tracking-tight ${toneClass}`}>{value}</p>
+    <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200 shadow-sm min-w-0">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 truncate">{label}</p>
+      <p className={`text-lg sm:text-2xl font-bold tracking-tight truncate ${toneClass}`}>{value}</p>
     </div>
   );
 };

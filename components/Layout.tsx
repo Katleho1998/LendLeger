@@ -97,7 +97,7 @@ export const Layout = ({ children }: LayoutProps) => {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {/* Header */}
         <header className="h-24 flex items-center justify-between px-6 lg:px-10 shrink-0">
           <div className="flex items-center lg:hidden">

@@ -104,46 +104,46 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
   const selectedBorrower = borrowers.find(b => b.id === formData.borrowerId);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
-        <div className="bg-white rounded-2xl p-8 w-full max-w-2xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
-            <button onClick={() => { 
-                setCurrentStep('form'); 
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 transition-opacity">
+        <div className="bg-white rounded-2xl p-5 sm:p-8 w-full max-w-2xl shadow-2xl relative overflow-y-auto max-h-[95vh] sm:max-h-[90vh]">
+            <button onClick={() => {
+                setCurrentStep('form');
                 setHasSignature(false);
                 setSignature('');
-                onClose(); 
-            }} className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 bg-slate-50 p-2 rounded-full transition-colors">
+                onClose();
+            }} className="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-slate-600 bg-slate-50 p-2 rounded-full transition-colors">
                 <X size={20} />
             </button>
-            
+
             {/* Step Indicator */}
             <div className="flex items-center justify-center mb-6">
-                <div className="flex items-center space-x-4">
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'form' ? 'bg-brand-600 text-white' : currentStep === 'signature' || currentStep === 'confirm' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                <div className="flex items-center space-x-2 sm:space-x-4">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${currentStep === 'form' ? 'bg-brand-600 text-white' : currentStep === 'signature' || currentStep === 'confirm' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                         1
                     </div>
-                    <div className={`w-8 h-0.5 ${currentStep === 'signature' || currentStep === 'confirm' ? 'bg-green-500' : 'bg-slate-200'}`}></div>
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'signature' ? 'bg-brand-600 text-white' : currentStep === 'confirm' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                    <div className={`w-6 sm:w-8 h-0.5 shrink-0 ${currentStep === 'signature' || currentStep === 'confirm' ? 'bg-green-500' : 'bg-slate-200'}`}></div>
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${currentStep === 'signature' ? 'bg-brand-600 text-white' : currentStep === 'confirm' ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                         <PenTool size={16} />
                     </div>
-                    <div className={`w-8 h-0.5 ${currentStep === 'confirm' ? 'bg-green-500' : 'bg-slate-200'}`}></div>
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${currentStep === 'confirm' ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                    <div className={`w-6 sm:w-8 h-0.5 shrink-0 ${currentStep === 'confirm' ? 'bg-green-500' : 'bg-slate-200'}`}></div>
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${currentStep === 'confirm' ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
                         <CheckCircle size={16} />
                     </div>
                 </div>
             </div>
-            
+
             {currentStep === 'form' && (
                 <>
-                    <h2 className="text-2xl font-bold mb-2 text-slate-900">Create New Loan</h2>
-                    <p className="text-slate-500 mb-8">Enter the loan details.</p>
-                    
+                    <h2 className="text-xl sm:text-2xl font-bold mb-2 text-slate-900 pr-10">Create New Loan</h2>
+                    <p className="text-slate-500 mb-6 sm:mb-8">Enter the loan details.</p>
+
                     <form onSubmit={handleFormSubmit} className="space-y-6">
                       <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">Select Borrower</label>
-                        <select 
-                            required 
-                            className="w-full border border-slate-200 rounded-xl p-3 bg-white text-slate-900 focus:ring-2 focus:ring-brand-100 transition-all outline-none" 
-                            value={formData.borrowerId} 
+                        <select
+                            required
+                            className="w-full border border-slate-200 rounded-xl p-3 bg-white text-slate-900 focus:ring-2 focus:ring-brand-100 transition-all outline-none"
+                            value={formData.borrowerId}
                             onChange={e => setFormData({...formData, borrowerId: e.target.value})}
                         >
                             <option value="">-- Select --</option>
@@ -151,7 +151,7 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
                         </select>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">Principal Amount</label>
                             <div className="relative">
@@ -206,14 +206,14 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
                          </div>
                       </div>
 
-                      <div className="flex justify-end space-x-3 pt-4">
-                        <button type="button" onClick={() => { 
-                            setCurrentStep('form'); 
+                      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4">
+                        <button type="button" onClick={() => {
+                            setCurrentStep('form');
                             setHasSignature(false);
                             setSignature('');
-                            onClose(); 
-                        }} className="px-6 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">Cancel</button>
-                        <button type="submit" className="px-8 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 font-semibold shadow-lg shadow-brand-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0">Next: Signature</button>
+                            onClose();
+                        }} className="w-full sm:w-auto px-6 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">Cancel</button>
+                        <button type="submit" className="w-full sm:w-auto px-8 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 font-semibold shadow-lg shadow-brand-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0">Next: Signature</button>
                       </div>
                     </form>
                 </>
@@ -221,8 +221,8 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
 
             {currentStep === 'signature' && (
                 <>
-                    <h2 className="text-2xl font-bold mb-2 text-slate-900">Borrower Signature</h2>
-                    <p className="text-slate-500 mb-8">Please have the borrower sign to confirm the loan agreement.</p>
+                    <h2 className="text-xl sm:text-2xl font-bold mb-2 text-slate-900 pr-10">Borrower Signature</h2>
+                    <p className="text-slate-500 mb-6 sm:mb-8">Please have the borrower sign to confirm the loan agreement.</p>
                     
                     <div className="space-y-6">
                         <div className="bg-slate-50 p-4 rounded-xl">
@@ -250,14 +250,14 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
                                     onEnd={handleSignatureEnd}
                                 />
                             </div>
-                            <div className="flex justify-between items-center mt-4">
-                                <button 
-                                    type="button" 
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mt-4">
+                                <button
+                                    type="button"
                                     onClick={() => {
                                         signatureRef.current?.clear();
                                         setHasSignature(false);
                                     }}
-                                    className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium transition-colors"
+                                    className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium transition-colors self-start"
                                 >
                                     Clear
                                 </button>
@@ -265,13 +265,13 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
                             </div>
                         </div>
 
-                        <div className="flex justify-between space-x-3 pt-4">
-                            <button type="button" onClick={handleBack} className="px-6 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">Back</button>
-                            <button 
-                                type="button" 
+                        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 pt-4">
+                            <button type="button" onClick={handleBack} className="w-full sm:w-auto px-6 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">Back</button>
+                            <button
+                                type="button"
                                 onClick={handleSignatureSubmit}
                                 disabled={!hasSignature}
-                                className="px-8 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-semibold shadow-lg shadow-brand-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                                className="w-full sm:w-auto px-8 py-3 bg-brand-600 text-white rounded-xl hover:bg-brand-700 disabled:bg-slate-300 disabled:cursor-not-allowed font-semibold shadow-lg shadow-brand-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
                             >
                                 Next: Confirm
                             </button>
@@ -282,13 +282,13 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
 
             {currentStep === 'confirm' && (
                 <>
-                    <h2 className="text-2xl font-bold mb-2 text-slate-900">Confirm Loan Creation</h2>
-                    <p className="text-slate-500 mb-8">Please review the loan details and signature before creating.</p>
-                    
+                    <h2 className="text-xl sm:text-2xl font-bold mb-2 text-slate-900 pr-10">Confirm Loan Creation</h2>
+                    <p className="text-slate-500 mb-6 sm:mb-8">Please review the loan details and signature before creating.</p>
+
                     <div className="space-y-6">
                         <div className="bg-brand-50 p-5 rounded-xl border border-brand-100">
                             <h3 className="font-bold text-brand-900 mb-3">Loan Details</h3>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-4 text-sm">
                                 <div>
                                     <span className="text-slate-600">Borrower:</span>
                                     <p className="font-semibold text-slate-900">{selectedBorrower?.name}</p>
@@ -327,12 +327,12 @@ export const CreateLoanModal: React.FC<CreateLoanModalProps> = ({ isOpen, onClos
                             </div>
                         </div>
 
-                        <div className="flex justify-between space-x-3 pt-4">
-                            <button type="button" onClick={handleBack} className="px-6 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">Back</button>
-                            <button 
-                                type="button" 
+                        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3 pt-4">
+                            <button type="button" onClick={handleBack} className="w-full sm:w-auto px-6 py-3 text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl font-medium transition-colors">Back</button>
+                            <button
+                                type="button"
                                 onClick={handleFinalSubmit}
-                                className="px-8 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                                className="w-full sm:w-auto px-8 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 font-semibold shadow-lg shadow-green-500/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
                             >
                                 Create Loan
                             </button>

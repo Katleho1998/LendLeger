@@ -112,7 +112,7 @@ export const Loans = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
+                        <div className="flex items-center flex-wrap justify-between sm:justify-end w-full sm:w-auto gap-2 sm:gap-4">
                             <div className="text-right block sm:hidden">
                                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Balance</p>
                                 <p className="text-lg sm:text-xl font-bold text-slate-900">R{loan.balance.toFixed(2)}</p>

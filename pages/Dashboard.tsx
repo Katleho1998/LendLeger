@@ -12,19 +12,19 @@ const StatCard = ({ title, value, badgeValue, badgeType }: any) => {
   const badgeIcon = isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />;
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-soft border border-slate-100 hover:shadow-lg hover:border-slate-200 transition-all duration-300 group">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${title.includes('Overdue') || title.includes('Written Off') ? 'bg-rose-500' : 'bg-brand-500'}`}></div>
-            <h3 className="text-sm font-semibold text-slate-500">{title}</h3>
+    <div className="bg-white p-6 rounded-2xl shadow-soft border border-slate-100 hover:shadow-lg hover:border-slate-200 transition-all duration-300 group min-w-0">
+      <div className="flex justify-between items-start mb-4 gap-2">
+        <div className="flex items-center space-x-2 min-w-0">
+            <div className={`w-2 h-2 rounded-full shrink-0 ${title.includes('Overdue') || title.includes('Written Off') ? 'bg-rose-500' : 'bg-brand-500'}`}></div>
+            <h3 className="text-sm font-semibold text-slate-500 truncate">{title}</h3>
         </div>
-        <MoreHorizontal size={20} className="text-slate-300" />
+        <MoreHorizontal size={20} className="text-slate-300 shrink-0" />
       </div>
-      
-      <div className="flex items-end space-x-3">
-        <span className="text-3xl font-bold text-slate-900 tracking-tight">{value}</span>
+
+      <div className="flex items-end flex-wrap gap-x-3 gap-y-1">
+        <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight truncate">{value}</span>
         {badgeValue && (
-            <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-bold ${badgeColor} mb-1.5`}>
+            <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-bold ${badgeColor} mb-1.5 shrink-0`}>
                 {badgeIcon}
                 <span>{badgeValue}</span>
             </div>
@@ -189,7 +189,7 @@ export const Dashboard = () => {
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Bar Chart */}
-        <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-soft border border-slate-100 relative">
+        <div className="lg:col-span-2 bg-white p-5 sm:p-8 rounded-2xl shadow-soft border border-slate-100 relative">
           <div className="flex justify-between items-center mb-8">
             <div>
                 <h3 className="text-lg font-bold text-slate-800">Cashflow Overview</h3>
@@ -238,7 +238,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Donut Chart */}
-        <div className="bg-white p-8 rounded-2xl shadow-soft border border-slate-100 flex flex-col justify-between">
+        <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-soft border border-slate-100 flex flex-col justify-between">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-slate-800">Portfolio Health</h3>
             <button className="text-slate-400 hover:text-brand-600 transition-colors"><MoreHorizontal /></button>
@@ -284,7 +284,7 @@ export const Dashboard = () => {
       {/* Bottom Lists Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
          {/* Recent Activity List */}
-         <div className="bg-white p-8 rounded-2xl shadow-soft border border-slate-100">
+         <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-soft border border-slate-100">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-slate-800">Recent Loans</h3>
                 <button onClick={() => navigate('/loans')} className="text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors">View All</button>
@@ -312,7 +312,7 @@ export const Dashboard = () => {
          </div>
 
          {/* Quick Actions / Reminders */}
-         <div className="bg-white p-8 rounded-2xl shadow-soft border border-slate-100">
+         <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-soft border border-slate-100">
              <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-slate-800">Reminders</h3>
                 <span className="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-xs font-bold">High Priority</span>
