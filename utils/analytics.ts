@@ -4,24 +4,41 @@ export interface PortfolioMetrics {
   totalPrincipal: number;       // Total ever disbursed to borrowers (cash out)
   totalCollected: number;       // Real cash collected (excludes PENALTY entries, which are
                                  // just a debt marker, no cash actually changes hands for them)
-  totalInterestEarned: number;  // Interest recognized on cash collected from loans that are
-                                 // still open or were fully paid (i.e. NOT written off -- a
-                                 // written-off loan's outcome is captured in writeOffLoss instead,
-                                 // so the two figures add up to netProfit without double-counting)
-  writeOffLoss: number;         // True realized loss on written-off loans: cash actually
+  totalInterestEarned: number;  // Profit -- ONLY from loans that reached status PAID: cash
+                                 // collected minus principal (so a genuine overpayment counts
+                                 // as full profit too, not just the contracted interest). A loan
+                                 // still ACTIVE/OVERDUE contributes 0 here regardless of partial
+                                 // payments made -- profit is only recognized once a loan is
+                                 // fully paid off, not progressively as payments come in.
+  writeOffLoss: number;         // Net realized outcome of written-off loans: cash actually
                                  // recovered from them minus what was originally lent out.
                                  // Negative = a loss (the normal case); can be positive if a
                                  // loan had already recovered more than its principal before
-                                 // the remaining (smaller) balance was written off.
-  totalWrittenOff: number;      // Full unpaid balance recorded via "Close & Write Off" -- for
-                                 // display (the Written-Off stat/report) only. This blends
-                                 // unrecovered principal with unrecovered interest that was
-                                 // never counted as profit, so it is NOT what feeds netProfit
-                                 // (that's writeOffLoss) -- using this figure for both would
-                                 // double-count the loss.
+                                 // the remaining (smaller, interest-only) balance was forgiven.
+                                 // Deliberately kept OUT of netProfit -- see netProfit's comment.
+  totalWrittenOff: number;      // The true capital lost to write-offs, portfolio-wide: for each
+                                 // written-off loan, principal minus whatever cash actually came
+                                 // back (floored at 0 per loan -- a loan that had already
+                                 // recovered its full principal before the remaining, uncollected
+                                 // interest was forgiven represents no capital loss at all). This
+                                 // is deliberately NOT the full unpaid contractual balance -- that
+                                 // figure blends in interest that was never actually collected,
+                                 // so treating it as "lost" would overstate the real loss. (An
+                                 // individual loan's own `writeOffAmount` field, shown on its
+                                 // card and in the detailed Write-Offs report, is still the full
+                                 // forgiven balance -- a legitimate, different, per-loan figure
+                                 // for "how much of the contract did we let this borrower off
+                                 // the hook for".)
   totalOutstanding: number;     // Sum of current balances still owed on open loans
   overdueAmount: number;        // Sum of balances specifically on OVERDUE loans
-  netProfit: number;            // The true bottom line: totalInterestEarned + writeOffLoss
+  netProfit: number;            // = totalInterestEarned only. Write-offs are deliberately NOT
+                                 // netted in here -- Net Profit means "profit banked from deals
+                                 // that were actually completed", and write-off losses are shown
+                                 // as their own separate figure (writeOffLoss / totalWrittenOff)
+                                 // rather than folded into this one. (This does mean the
+                                 // Dashboard's "Total Value" tile, which is startingCapital +
+                                 // netProfit, will not reflect capital lost to write-offs either
+                                 // -- worth knowing if that ever needs to change.)
   activeCount: number;
   overdueCount: number;
   paidCount: number;
@@ -54,47 +71,25 @@ export const computePortfolioMetrics = (loans: Loan[]): PortfolioMetrics => {
       .reduce((sum, p) => sum + p.amount, 0);
     totalCollected += cashPaid;
 
-    if (loan.status === LoanStatus.DEFAULTED) {
-      // Nothing more will ever arrive on a written-off loan, so its final outcome is
-      // simply what came back minus what went out. (A ratio-based split like the one
-      // used below would double-count the loss here: the unpaid balance being written
-      // off is itself a blend of unrecovered principal AND unrecovered interest, and
-      // that interest portion was never recognized as profit to begin with, so it
-      // doesn't need subtracting again on top of the principal.)
+    if (loan.status === LoanStatus.PAID) {
+      // Fully resolved, everything (and possibly more) collected -- the entire gap
+      // between what was lent and what came back is realized profit, no ratio needed.
+      totalInterestEarned += cashPaid - loan.principal;
+      paidCount++;
+    } else if (loan.status === LoanStatus.DEFAULTED) {
+      // Fully resolved the other way -- nothing more will ever arrive, so the final
+      // outcome is simply what came back minus what went out. Kept separate from
+      // netProfit; see writeOffLoss's own doc comment for why.
       writeOffLoss += cashPaid - loan.principal;
-      totalWrittenOff += loan.writeOffAmount || 0;
+      totalWrittenOff += Math.max(0, loan.principal - cashPaid);
       defaultedCount++;
-    } else {
-      // Interest recognized so far: cash collected, split proportionally between
-      // principal and interest using the CURRENT totalRepayment (which already has
-      // any penalties folded in, so a penalty correctly makes a larger share of what's
-      // collected count as profit). Deliberately cash-basis -- a loan sitting open
-      // with nothing paid yet contributes 0 here, even though it carries embedded
-      // future interest; see totalOutstanding for what's still owed but not realized.
-      //
-      // A borrower can pay MORE than totalRepayment (a rounded-up or "extra" payment) --
-      // the payment record keeps the full amount even though balance floors at 0. Only
-      // the portion up to totalRepayment gets the proportional split; principal and the
-      // contracted interest are already fully recovered by that point, so every rand
-      // beyond it is pure profit, not a blend -- splitting the whole amount by ratio
-      // would silently discount a genuine overpayment as if part of it were still
-      // "recovering principal".
-      if (cashPaid > 0 && loan.totalRepayment > 0) {
-        const totalInterest = loan.totalRepayment - loan.principal;
-        const interestRatio = totalInterest / loan.totalRepayment;
-        const recognizedCash = Math.min(cashPaid, loan.totalRepayment);
-        const overpayment = cashPaid - recognizedCash;
-        totalInterestEarned += recognizedCash * interestRatio + overpayment;
-      }
-
-      if (loan.status === LoanStatus.OVERDUE) {
-        overdueCount++;
-        overdueAmount += loan.balance;
-      } else if (loan.status === LoanStatus.PAID) {
-        paidCount++;
-      } else if (loan.status === LoanStatus.ACTIVE) {
-        activeCount++;
-      }
+    } else if (loan.status === LoanStatus.OVERDUE) {
+      // Still open -- may yet be paid in full or eventually written off. No profit or
+      // loss is recognized until it actually resolves one way or the other.
+      overdueCount++;
+      overdueAmount += loan.balance;
+    } else if (loan.status === LoanStatus.ACTIVE) {
+      activeCount++;
     }
   });
 
@@ -106,7 +101,7 @@ export const computePortfolioMetrics = (loans: Loan[]): PortfolioMetrics => {
     totalWrittenOff,
     totalOutstanding,
     overdueAmount,
-    netProfit: totalInterestEarned + writeOffLoss,
+    netProfit: totalInterestEarned,
     activeCount,
     overdueCount,
     paidCount,

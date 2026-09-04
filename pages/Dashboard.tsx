@@ -51,11 +51,14 @@ export const Dashboard = () => {
   const capital = useMemo(() => {
     const m = computePortfolioMetrics(loans);
     const availableToLend = startingCapital - m.totalPrincipal + m.totalCollected;
-    // Total Value: what the business is actually worth right now -- the starting
-    // capital plus every rand of profit banked so far (interest earned, net of any
-    // bad debt written off). This is how the capital has grown, not just cash on hand.
-    const totalValue = startingCapital + m.netProfit;
-    const growthPercent = startingCapital > 0 ? (m.netProfit / startingCapital) * 100 : null;
+    // Total Value: what the business is actually worth right now. Net Profit itself only
+    // counts fully-paid loans (write-offs are shown as their own separate figure elsewhere),
+    // but "what am I actually worth" has to account for confirmed capital losses too, or this
+    // tile would overstate net worth once anything's been written off -- so it's the one place
+    // profit and write-off loss are combined into a single true bottom line.
+    const trueBottomLine = m.netProfit + m.writeOffLoss;
+    const totalValue = startingCapital + trueBottomLine;
+    const growthPercent = startingCapital > 0 ? (trueBottomLine / startingCapital) * 100 : null;
     return { disbursed: m.totalPrincipal, collected: m.totalCollected, availableToLend, netProfit: m.netProfit, totalValue, growthPercent };
   }, [loans, startingCapital]);
 

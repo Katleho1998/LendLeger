@@ -53,9 +53,7 @@ export const generateProfitLossPDF = (loans: Loan[]) => {
     body: [
       ['Total Principal Disbursed', `R ${m.totalPrincipal.toFixed(2)}`],
       ['Total Cash Collected', `R ${m.totalCollected.toFixed(2)}`],
-      ['Interest Earned (on open/paid loans)', `R ${m.totalInterestEarned.toFixed(2)}`],
-      ['Loss on Written-Off Loans', `${m.writeOffLoss >= 0 ? '' : '-'}R ${Math.abs(m.writeOffLoss).toFixed(2)}`],
-      ['Net Profit', `R ${m.netProfit.toFixed(2)}`],
+      ['Net Profit (fully paid loans only)', `R ${m.netProfit.toFixed(2)}`],
     ],
   });
 
@@ -63,7 +61,25 @@ export const generateProfitLossPDF = (loans: Loan[]) => {
   doc.setFontSize(9);
   doc.setTextColor(120);
   doc.text(
-    `Written off loans: ${m.defaultedCount} loan(s), R ${m.totalWrittenOff.toFixed(2)} in unpaid balance forgiven in total`,
+    'Net Profit counts only loans that have been fully paid off (including any overpayment as profit).',
+    14,
+    finalY
+  );
+  finalY += 5;
+  doc.text(
+    'Loans still open (Active/Overdue) contribute nothing here yet, even with partial payments made.',
+    14,
+    finalY
+  );
+  finalY += 8;
+  doc.setFontSize(10);
+  doc.setTextColor(0);
+  doc.text('Write-Offs (kept separate from Net Profit above):', 14, finalY);
+  finalY += 6;
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(
+    `${m.defaultedCount} loan(s) written off. Capital actually lost (principal minus what was recovered): R ${m.totalWrittenOff.toFixed(2)}.`,
     14,
     finalY
   );
@@ -148,7 +164,10 @@ export const generateCapitalPDF = (loans: Loan[], startingCapital: number) => {
 
   const m = computePortfolioMetrics(loans);
   const availableToLend = startingCapital - m.totalPrincipal + m.totalCollected;
-  const totalValue = startingCapital + m.netProfit;
+  // Total Value combines Net Profit (fully-paid loans) with write-off losses, since "what
+  // the business is worth" must reflect confirmed capital losses even though the Net Profit
+  // figure itself (see the Profit & Loss report) deliberately keeps write-offs separate.
+  const totalValue = startingCapital + m.netProfit + m.writeOffLoss;
 
   autoTable(doc, {
     startY: 40,
