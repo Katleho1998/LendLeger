@@ -71,10 +71,20 @@ export const computePortfolioMetrics = (loans: Loan[]): PortfolioMetrics => {
       // collected count as profit). Deliberately cash-basis -- a loan sitting open
       // with nothing paid yet contributes 0 here, even though it carries embedded
       // future interest; see totalOutstanding for what's still owed but not realized.
+      //
+      // A borrower can pay MORE than totalRepayment (a rounded-up or "extra" payment) --
+      // the payment record keeps the full amount even though balance floors at 0. Only
+      // the portion up to totalRepayment gets the proportional split; principal and the
+      // contracted interest are already fully recovered by that point, so every rand
+      // beyond it is pure profit, not a blend -- splitting the whole amount by ratio
+      // would silently discount a genuine overpayment as if part of it were still
+      // "recovering principal".
       if (cashPaid > 0 && loan.totalRepayment > 0) {
         const totalInterest = loan.totalRepayment - loan.principal;
         const interestRatio = totalInterest / loan.totalRepayment;
-        totalInterestEarned += cashPaid * interestRatio;
+        const recognizedCash = Math.min(cashPaid, loan.totalRepayment);
+        const overpayment = cashPaid - recognizedCash;
+        totalInterestEarned += recognizedCash * interestRatio + overpayment;
       }
 
       if (loan.status === LoanStatus.OVERDUE) {
