@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useStore } from '../services/storage';
-import { Plus, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, Trash2, User } from 'lucide-react';
+import { Plus, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, Trash2, User, Ban } from 'lucide-react';
 import { EditDueDateModal } from '../components/EditDueDateModal';
+import { WriteOffLoanModal } from '../components/WriteOffLoanModal';
 import { Loan, LoanStatus } from '../types';
 import { CreateLoanModal } from '../components/CreateLoanModal';
 import { useAuth } from '../context/AuthContext';
 
 export const Loans = () => {
-    const { borrowers, loans, addPayment, searchTerm, setSearchTerm, deleteLoan, updateLoanDueDate } = useStore();
+    const { borrowers, loans, addPayment, searchTerm, setSearchTerm, deleteLoan, updateLoanDueDate, writeOffLoan } = useStore();
     const { user } = useAuth();
     // Data is shared across all users, but edits/payments/deletes are owner-only (enforced by Supabase RLS).
     const isOwner = (l: Loan) => !l.userId || l.userId === user?.id;
@@ -15,6 +16,7 @@ export const Loans = () => {
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
     const [editDueLoan, setEditDueLoan] = useState<null | { id: string; dueDate: string }>(null);
+    const [writeOffLoanTarget, setWriteOffLoanTarget] = useState<null | { id: string; balance: number; borrowerName?: string }>(null);
 
   // Payment Form State
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -91,11 +93,12 @@ export const Loans = () => {
                     >
                         <div className="flex items-center space-x-4 sm:space-x-5 flex-1 min-w-0">
                             <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center ${
-                                loan.status === LoanStatus.PAID ? 'bg-emerald-100 text-emerald-600' : 
-                                loan.status === LoanStatus.OVERDUE ? 'bg-rose-100 text-rose-600' : 
+                                loan.status === LoanStatus.PAID ? 'bg-emerald-100 text-emerald-600' :
+                                loan.status === LoanStatus.OVERDUE ? 'bg-rose-100 text-rose-600' :
+                                loan.status === LoanStatus.DEFAULTED ? 'bg-slate-200 text-slate-500' :
                                 'bg-brand-100 text-brand-600'
                             }`}>
-                                <DollarSign size={20} strokeWidth={2.5} />
+                                {loan.status === LoanStatus.DEFAULTED ? <Ban size={20} strokeWidth={2.5} /> : <DollarSign size={20} strokeWidth={2.5} />}
                             </div>
                             <div className="min-w-0 flex-1">
                                 <h3 className="font-bold text-slate-900 text-base sm:text-lg truncate">{borrower?.name || 'Unknown Borrower'}</h3>
@@ -121,9 +124,10 @@ export const Loans = () => {
                             <div className={`px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs font-bold border ${
                                 loan.status === LoanStatus.OVERDUE ? 'bg-rose-50 text-rose-600 border-rose-100' :
                                 loan.status === LoanStatus.PAID ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                loan.status === LoanStatus.DEFAULTED ? 'bg-slate-100 text-slate-500 border-slate-200' :
                                 'bg-brand-50 text-brand-600 border-brand-100'
                             }`}>
-                                {loan.status}
+                                {loan.status === LoanStatus.DEFAULTED ? 'WRITTEN OFF' : loan.status}
                             </div>
                             <div className={`p-2 rounded-full transition-colors ${isExpanded ? 'bg-slate-100 text-slate-600' : 'text-slate-300'}`}>
                                 {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -142,9 +146,24 @@ export const Loans = () => {
                                     <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 py-1">
                                         {isOwner(loan) ? (
                                             <>
-                                                <button type="button" onClick={(e) => { e.stopPropagation(); setEditDueLoan({ id: loan.id, dueDate: loan.dueDate }); setActiveMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                                                    <Calendar size={14} /> Edit Due Date
-                                                </button>
+                                                {loan.status !== LoanStatus.PAID && loan.status !== LoanStatus.DEFAULTED && (
+                                                    <>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setEditDueLoan({ id: loan.id, dueDate: loan.dueDate }); setActiveMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                                            <Calendar size={14} /> Edit Due Date
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setWriteOffLoanTarget({ id: loan.id, balance: loan.balance, borrowerName: borrower?.name });
+                                                                setActiveMenu(null);
+                                                            }}
+                                                            className="w-full text-left px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-2"
+                                                        >
+                                                            <Ban size={14} /> Close &amp; Write Off
+                                                        </button>
+                                                    </>
+                                                )}
                                                 <button type="button" onClick={(e) => handleDeleteLoan(e, loan.id)} className="w-full text-left px-4 py-2 text-sm text-rose-500 hover:bg-rose-50 flex items-center gap-2">
                                                     <Trash2 size={14} /> Delete
                                                 </button>
@@ -189,14 +208,35 @@ export const Loans = () => {
                                             <span className="font-semibold text-emerald-600">-R{(loan.totalRepayment - loan.balance).toFixed(2)}</span>
                                         </div>
                                         <div className="bg-slate-50 p-3 rounded-xl flex justify-between items-center mt-2 border border-slate-100">
-                                            <span className="text-slate-600 font-bold">Remaining</span> 
+                                            <span className="text-slate-600 font-bold">Remaining</span>
                                             <span className="font-bold text-rose-600 text-lg">R{loan.balance.toFixed(2)}</span>
                                         </div>
                                     </div>
-                                    
+
+                                    {loan.status === LoanStatus.DEFAULTED && (
+                                        <div className="mt-6 bg-slate-100 border border-slate-200 rounded-2xl p-4">
+                                            <h4 className="font-bold text-slate-700 flex items-center gap-2 mb-2">
+                                                <Ban size={16} className="text-slate-500" /> Written Off
+                                            </h4>
+                                            <div className="flex justify-between items-center text-sm mb-1">
+                                                <span className="text-slate-500 font-medium">Amount Lost</span>
+                                                <span className="font-bold text-slate-700">R{(loan.writeOffAmount || 0).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center text-sm mb-1">
+                                                <span className="text-slate-500 font-medium">Date</span>
+                                                <span className="font-semibold text-slate-600">{loan.writeOffDate ? new Date(loan.writeOffDate).toLocaleDateString() : '-'}</span>
+                                            </div>
+                                            {loan.writeOffReason && (
+                                                <p className="text-xs text-slate-500 mt-2 italic">"{loan.writeOffReason}"</p>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <div className="mt-8">
                                         <h4 className="font-bold text-slate-900 mb-4">Record Payment</h4>
-                                        {isOwner(loan) ? (
+                                        {loan.status === LoanStatus.DEFAULTED ? (
+                                            <p className="text-sm text-slate-400 italic">This loan was written off and is closed to further payments.</p>
+                                        ) : isOwner(loan) ? (
                                         <div className="flex flex-col sm:flex-row gap-3">
                                             <div className="flex-1 relative">
                                                 <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 font-bold text-sm">R</div>
@@ -219,7 +259,7 @@ export const Loans = () => {
                                                 </select>
                                                 <button
                                                     onClick={() => handlePayment(loan.id)}
-                                                    disabled={loan.status === LoanStatus.PAID}
+                                                    disabled={loan.status === LoanStatus.PAID || loan.status === LoanStatus.DEFAULTED}
                                                     className="bg-emerald-600 text-white px-6 py-3 rounded-xl hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg shadow-emerald-500/20 transition-all whitespace-nowrap"
                                                 >
                                                     Pay
@@ -331,6 +371,16 @@ export const Loans = () => {
                     } catch (e) {
                         console.error(e);
                     }
+                }}
+            />
+            <WriteOffLoanModal
+                isOpen={!!writeOffLoanTarget}
+                balance={writeOffLoanTarget?.balance || 0}
+                borrowerName={writeOffLoanTarget?.borrowerName}
+                onClose={() => setWriteOffLoanTarget(null)}
+                onConfirm={async (reason) => {
+                    if (!writeOffLoanTarget) return;
+                    await writeOffLoan(writeOffLoanTarget.id, reason);
                 }}
             />
     </div>

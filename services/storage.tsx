@@ -18,6 +18,7 @@ interface StoreContextType {
   addPayment: (loanId: string, amount: number, method: 'CASH' | 'TRANSFER' | 'OTHER') => void;
   recalculateLoans: () => void;
   updateLoanDueDate: (loanId: string, newDueDate: string) => Promise<void>;
+  writeOffLoan: (loanId: string, reason: string) => Promise<void>;
   startingCapital: number;
   updateStartingCapital: (amount: number) => Promise<void>;
 }
@@ -93,7 +94,10 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
             totalRepayment: d.total_repayment,
             payments: d.payments || [],
             logs: [],
-            signature: d.signature
+            signature: d.signature,
+            writeOffAmount: d.write_off_amount ?? undefined,
+            writeOffDate: d.write_off_date ?? undefined,
+            writeOffReason: d.write_off_reason ?? undefined
         })));
 
         const { data: aData, error: aError } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
@@ -547,6 +551,46 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     }
   };
 
+  const writeOffLoan = async (loanId: string, reason: string) => {
+    const loan = loans.find(l => l.id === loanId);
+    if (!loan) return;
+
+    // The loss is whatever is still owed right now -- once written off, we stop
+    // expecting to collect it, so the balance is closed out to 0.
+    const lossAmount = loan.balance;
+    const writeOffDate = new Date().toISOString();
+
+    try {
+      const { data: updated, error } = await supabase.from('loans').update({
+        status: LoanStatus.DEFAULTED,
+        balance: 0,
+        write_off_amount: lossAmount,
+        write_off_date: writeOffDate,
+        write_off_reason: reason || null
+      }).eq('id', loanId).select();
+
+      if (error) throw error;
+      if (!updated || updated.length === 0) {
+          alert("You can only write off loans you created.");
+          return;
+      }
+
+      setLoans(prev => prev.map(l => l.id === loanId ? {
+          ...l,
+          status: LoanStatus.DEFAULTED,
+          balance: 0,
+          writeOffAmount: lossAmount,
+          writeOffDate,
+          writeOffReason: reason
+      } : l));
+
+      logAction('WRITE_OFF_LOAN', `Wrote off loan as a loss of R${lossAmount.toFixed(2)}${reason ? ` - ${reason}` : ''}`, loanId);
+    } catch (e: any) {
+      console.error('Error writing off loan', e);
+      alert(`Failed to write off loan: ${e.message || 'Unknown error'}`);
+    }
+  };
+
   const updateStartingCapital = async (amount: number) => {
     if (!user || !isSupabaseConfigured) return;
     try {
@@ -619,6 +663,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       addPayment,
       recalculateLoans,
       updateLoanDueDate,
+      writeOffLoan,
       startingCapital,
       updateStartingCapital
     }}>

@@ -4,6 +4,7 @@ import { MoreHorizontal, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, Refr
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { LoanStatus } from '../types';
 import { useNavigate } from 'react-router-dom';
+import { computePortfolioMetrics } from '../utils/analytics';
 
 const StatCard = ({ title, value, badgeValue, badgeType }: any) => {
   const isPositive = badgeType === 'positive';
@@ -14,7 +15,7 @@ const StatCard = ({ title, value, badgeValue, badgeType }: any) => {
     <div className="bg-white p-6 rounded-2xl shadow-soft border border-slate-100 hover:shadow-lg hover:border-slate-200 transition-all duration-300 group">
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${title.includes('Overdue') ? 'bg-rose-500' : 'bg-brand-500'}`}></div>
+            <div className={`w-2 h-2 rounded-full ${title.includes('Overdue') || title.includes('Written Off') ? 'bg-rose-500' : 'bg-brand-500'}`}></div>
             <h3 className="text-sm font-semibold text-slate-500">{title}</h3>
         </div>
         <MoreHorizontal size={20} className="text-slate-300" />
@@ -48,55 +49,25 @@ export const Dashboard = () => {
   // capital (set on the Profile / Account Settings page), independent of the search
   // filter above -- it's a running total across every loan, not just the visible ones.
   const capital = useMemo(() => {
-    let disbursed = 0; // Cash out: principal handed to borrowers on every loan ever created.
-    let collected = 0; // Cash in: real money received. PENALTY entries are excluded --
-                        // they're stored as a negative amount that only inflates the
-                        // debt owed, no cash actually changes hands for them.
-
-    loans.forEach(loan => {
-      disbursed += loan.principal;
-      collected += loan.payments
-        .filter(p => p.method !== 'PENALTY')
-        .reduce((sum, p) => sum + p.amount, 0);
-    });
-
-    const availableToLend = startingCapital - disbursed + collected;
-    return { disbursed, collected, availableToLend };
+    const m = computePortfolioMetrics(loans);
+    const availableToLend = startingCapital - m.totalPrincipal + m.totalCollected;
+    return { disbursed: m.totalPrincipal, collected: m.totalCollected, availableToLend };
   }, [loans, startingCapital]);
 
   const metrics = useMemo(() => {
-    let totalLent = 0;
-    let totalCollected = 0;
-    let outstanding = 0;
-    let realizedProfit = 0;
-    let overdueCount = 0;
-    let overdueAmount = 0;
-    let activeCount = 0;
-
-    filteredLoans.forEach(loan => {
-      totalLent += loan.principal;
-      const paid = loan.payments.reduce((sum, p) => sum + p.amount, 0);
-      totalCollected += paid;
-      outstanding += loan.balance;
-      
-      if (loan.status === LoanStatus.OVERDUE) {
-        overdueCount++;
-        overdueAmount += loan.balance;
-      }
-      if (loan.status === LoanStatus.ACTIVE) {
-        activeCount++;
-      }
-
-      const totalRepayment = loan.totalRepayment;
-      const totalInterest = totalRepayment - loan.principal;
-      
-      if (totalRepayment > 0 && paid > 0) {
-         const interestRatio = totalInterest / totalRepayment;
-         realizedProfit += (paid * interestRatio);
-      }
-    });
-
-    return { totalLent, totalCollected, outstanding, realizedProfit, overdueCount, overdueAmount, activeCount };
+    const m = computePortfolioMetrics(filteredLoans);
+    return {
+      totalLent: m.totalPrincipal,
+      totalCollected: m.totalCollected,
+      outstanding: m.totalOutstanding,
+      realizedProfit: m.totalInterestEarned,
+      netProfit: m.netProfit,
+      overdueCount: m.overdueCount,
+      overdueAmount: m.overdueAmount,
+      activeCount: m.activeCount,
+      writtenOff: m.totalWrittenOff,
+      defaultedCount: m.defaultedCount
+    };
   }, [filteredLoans]);
 
   // Chart Data
@@ -115,6 +86,7 @@ export const Dashboard = () => {
     { name: 'Active', value: metrics.activeCount, color: '#3b82f6' }, // Brand Blue
     { name: 'Overdue', value: metrics.overdueCount, color: '#f43f5e' }, // Rose
     { name: 'Paid', value: filteredLoans.filter(l => l.status === LoanStatus.PAID).length, color: '#10b981' }, // Emerald
+    { name: 'Written Off', value: metrics.defaultedCount, color: '#94a3b8' }, // Slate
   ];
   const totalLoans = filteredLoans.length || 1;
   const paidPercentage = Math.round((filteredLoans.filter(l => l.status === LoanStatus.PAID).length / totalLoans) * 100);
@@ -167,29 +139,35 @@ export const Dashboard = () => {
       </div>
 
       {/* Top Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Total Lent" 
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+        <StatCard
+          title="Total Lent"
           value={`R${metrics.totalLent.toLocaleString()}`}
           badgeValue="20%"
           badgeType="positive"
         />
-        <StatCard 
-          title="Active Loans" 
+        <StatCard
+          title="Active Loans"
           value={metrics.activeCount}
           badgeValue="5%"
           badgeType="positive"
         />
-         <StatCard 
-          title="Net Profit" 
-          value={`R${metrics.realizedProfit.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
+         <StatCard
+          title="Net Profit"
+          value={`R${metrics.netProfit.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
           badgeValue="12%"
           badgeType="positive"
         />
-        <StatCard 
-          title="Overdue Loans" 
+        <StatCard
+          title="Overdue Loans"
           value={metrics.overdueCount}
           badgeValue="2%"
+          badgeType="negative"
+        />
+        <StatCard
+          title="Written Off"
+          value={`R${metrics.writtenOff.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
+          badgeValue={`${metrics.defaultedCount}`}
           badgeType="negative"
         />
       </div>

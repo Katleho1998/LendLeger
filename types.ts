@@ -69,6 +69,9 @@ export interface Loan {
   payments: Payment[];
   logs: AuditLog[];
   signature?: string; // Base64 encoded signature image
+  writeOffAmount?: number; // Balance that was still owed at the moment this loan was written off
+  writeOffDate?: string;
+  writeOffReason?: string;
 }
 
 export interface AuditLog {
