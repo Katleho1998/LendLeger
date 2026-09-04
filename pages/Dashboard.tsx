@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useStore } from '../services/storage';
-import { MoreHorizontal, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, RefreshCw, FileText } from 'lucide-react';
+import { MoreHorizontal, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, RefreshCw, FileText, Wallet, Settings as SettingsIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { LoanStatus } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -35,14 +35,34 @@ const StatCard = ({ title, value, badgeValue, badgeType }: any) => {
 };
 
 export const Dashboard = () => {
-  const { loans, searchTerm } = useStore();
+  const { loans, searchTerm, startingCapital } = useStore();
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState<string | null>(null);
 
-  const filteredLoans = loans.filter(l => 
-     l.id.includes(searchTerm) || 
+  const filteredLoans = loans.filter(l =>
+     l.id.includes(searchTerm) ||
      l.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Capital pool: tracks actual cash movement against the manually-entered starting
+  // capital (set on the Profile / Account Settings page), independent of the search
+  // filter above -- it's a running total across every loan, not just the visible ones.
+  const capital = useMemo(() => {
+    let disbursed = 0; // Cash out: principal handed to borrowers on every loan ever created.
+    let collected = 0; // Cash in: real money received. PENALTY entries are excluded --
+                        // they're stored as a negative amount that only inflates the
+                        // debt owed, no cash actually changes hands for them.
+
+    loans.forEach(loan => {
+      disbursed += loan.principal;
+      collected += loan.payments
+        .filter(p => p.method !== 'PENALTY')
+        .reduce((sum, p) => sum + p.amount, 0);
+    });
+
+    const availableToLend = startingCapital - disbursed + collected;
+    return { disbursed, collected, availableToLend };
+  }, [loans, startingCapital]);
 
   const metrics = useMemo(() => {
     let totalLent = 0;
@@ -106,6 +126,44 @@ export const Dashboard = () => {
       <div>
         <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Financial Overview</h2>
         <p className="text-slate-500 mt-1">Monitor your lending performance and cashflow.</p>
+      </div>
+
+      {/* Capital Pool */}
+      <div className="bg-slate-900 p-6 sm:p-8 rounded-2xl shadow-soft relative overflow-hidden">
+        <div className="absolute -right-10 -top-10 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl"></div>
+        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-brand-500/20 flex items-center justify-center text-brand-400 shrink-0">
+              <Wallet size={24} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-400">Available to Lend</p>
+              <p className={`text-3xl font-bold tracking-tight ${capital.availableToLend < 0 ? 'text-rose-400' : 'text-white'}`}>
+                R{capital.availableToLend.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </p>
+              {startingCapital === 0 && (
+                <button onClick={() => navigate('/profile')} className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1 mt-1">
+                  <SettingsIcon size={12} /> Set your starting capital in Settings
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-x-8 gap-y-3 lg:border-l lg:border-slate-800 lg:pl-8">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Starting Capital</p>
+              <p className="text-lg font-bold text-white mt-0.5">R{startingCapital.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Disbursed</p>
+              <p className="text-lg font-bold text-white mt-0.5">-R{capital.disbursed.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Collected</p>
+              <p className="text-lg font-bold text-white mt-0.5">+R{capital.collected.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Top Cards Grid */}

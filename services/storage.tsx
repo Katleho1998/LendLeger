@@ -18,6 +18,8 @@ interface StoreContextType {
   addPayment: (loanId: string, amount: number, method: 'CASH' | 'TRANSFER' | 'OTHER') => void;
   recalculateLoans: () => void;
   updateLoanDueDate: (loanId: string, newDueDate: string) => Promise<void>;
+  startingCapital: number;
+  updateStartingCapital: (amount: number) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -30,6 +32,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [startingCapital, setStartingCapital] = useState<number>(0);
 
   // Check configuration on mount
   useEffect(() => {
@@ -96,7 +99,13 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
         const { data: aData, error: aError } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
         if (aError) throw aError;
         setAuditLogs(aData as AuditLog[]);
-        
+
+        // Shared "Capital Pool" setting (single row, id = 'global'). Missing/errored
+        // just means it hasn't been set yet -- fall back to 0 rather than failing the page.
+        const { data: sData, error: sError } = await supabase.from('settings').select('starting_capital').eq('id', 'global').maybeSingle();
+        if (sError) console.error("Error fetching settings:", sError);
+        setStartingCapital(sData?.starting_capital ?? 0);
+
         setError(null);
     } catch (e: any) {
         console.error("Supabase Fetch Error:", e);
@@ -137,6 +146,11 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'audit_logs' },
+        () => fetchData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'settings' },
         () => fetchData()
       )
       .subscribe();
@@ -533,6 +547,25 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     }
   };
 
+  const updateStartingCapital = async (amount: number) => {
+    if (!user || !isSupabaseConfigured) return;
+    try {
+      const { error } = await supabase.from('settings').upsert({
+        id: 'global',
+        starting_capital: amount,
+        updated_at: new Date().toISOString(),
+        updated_by: user.id
+      });
+      if (error) throw error;
+
+      setStartingCapital(amount);
+      logAction('UPDATE_SETTINGS', `Set starting capital to R${amount}`);
+    } catch (e: any) {
+      console.error('Error updating starting capital', e);
+      alert(`Failed to save starting capital: ${e.message || 'Unknown error'}`);
+    }
+  };
+
   useEffect(() => {
     const interval = setInterval(recalculateLoans, 60000);
     if (loans.length > 0) recalculateLoans();
@@ -585,7 +618,9 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       deleteLoan,
       addPayment,
       recalculateLoans,
-      updateLoanDueDate
+      updateLoanDueDate,
+      startingCapital,
+      updateStartingCapital
     }}>
       {children}
     </StoreContext.Provider>

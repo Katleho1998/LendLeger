@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useStore } from '../services/storage';
 import { supabase } from '../services/supabase';
-import { User, Building, Phone, Save, Mail, Shield } from 'lucide-react';
+import { User, Building, Phone, Save, Mail, Shield, Wallet } from 'lucide-react';
 import { UserProfile } from '../types';
 
 export const Profile = () => {
   const { user, userProfile, refreshProfile } = useAuth();
+  const { startingCapital, updateStartingCapital } = useStore();
   const [formData, setFormData] = useState<Partial<UserProfile>>({
     displayName: '',
     businessName: '',
@@ -13,6 +15,29 @@ export const Profile = () => {
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+
+  const [capitalInput, setCapitalInput] = useState('');
+  const [savingCapital, setSavingCapital] = useState(false);
+  const [capitalMessage, setCapitalMessage] = useState('');
+
+  useEffect(() => {
+    setCapitalInput(startingCapital ? String(startingCapital) : '');
+  }, [startingCapital]);
+
+  const handleSaveCapital = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = parseFloat(capitalInput);
+    if (isNaN(amount) || amount < 0) {
+      setCapitalMessage('Error: Enter a valid amount.');
+      return;
+    }
+    setSavingCapital(true);
+    setCapitalMessage('');
+    await updateStartingCapital(amount);
+    setSavingCapital(false);
+    setCapitalMessage('Starting capital saved!');
+    setTimeout(() => setCapitalMessage(''), 3000);
+  };
 
   useEffect(() => {
     if (userProfile) {
@@ -98,6 +123,41 @@ export const Profile = () => {
                     Admin Account
                 </div>
             </div>
+
+            <form onSubmit={handleSaveCapital} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
+                    <Wallet size={20} className="text-brand-600" />
+                    Lending Capital
+                </h3>
+                <p className="text-xs text-slate-500 mb-4">
+                    The cash you started lending with. The Dashboard uses this to track how much is still available to lend out.
+                </p>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Starting Capital (R)</label>
+                <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-slate-900 outline-none focus:bg-white focus:ring-2 focus:ring-brand-100 focus:border-brand-300 transition-all"
+                    value={capitalInput}
+                    onChange={(e) => setCapitalInput(e.target.value)}
+                    placeholder="e.g. 50000"
+                />
+                <div className="flex items-center justify-between mt-4">
+                    {capitalMessage ? (
+                        <span className={`text-xs font-medium ${capitalMessage.includes('Error') ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            {capitalMessage}
+                        </span>
+                    ) : <span></span>}
+                    <button
+                        type="submit"
+                        disabled={savingCapital}
+                        className="bg-slate-900 text-white px-4 py-2 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                        {savingCapital ? 'Saving...' : 'Save'}
+                        {!savingCapital && <Save size={16} />}
+                    </button>
+                </div>
+            </form>
 
             <div className="bg-brand-600 p-6 rounded-2xl text-white shadow-lg shadow-brand-500/30">
                 <h4 className="font-bold text-lg mb-2">Upgrade to Pro</h4>
