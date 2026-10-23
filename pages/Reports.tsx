@@ -70,7 +70,7 @@ export const Reports = () => {
             <SummaryTile label="Available to Lend" value={`R${availableToLend.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} tone={availableToLend >= 0 ? 'positive' : 'negative'} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             <ReportCard
                 icon={<FileText size={24} className="text-blue-600" />}
                 iconBg="bg-blue-100"

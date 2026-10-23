@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, Banknote, FileText, Menu, X, Activity, Search, Bell, CheckSquare, LogOut, User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { CreateLoanModal } from './CreateLoanModal';
@@ -38,8 +38,10 @@ export const Layout = ({ children }: LayoutProps) => {
   const { user, userProfile, logout } = useAuth();
   const { searchTerm, setSearchTerm } = useStore();
 
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-600">
+    <div className="app-shell flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-600">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -50,7 +52,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
       {/* Sidebar */}
       <aside 
-        className={`fixed lg:relative z-50 w-72 h-full bg-white border-r border-slate-200 transform transition-transform duration-300 ease-out lg:translate-x-0 ${
+        className={`fixed lg:relative z-50 w-72 max-w-[90vw] shrink-0 h-full bg-white border-r border-slate-200 transform transition-transform duration-300 ease-out lg:translate-x-0 ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -99,17 +101,17 @@ export const Layout = ({ children }: LayoutProps) => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="h-24 flex items-center justify-between px-6 lg:px-10 shrink-0">
+        <header className="min-h-20 xl:h-24 flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 py-3 shrink-0">
           <div className="flex items-center lg:hidden">
             <button 
-                onClick={() => setSidebarOpen(true)}
+                aria-label="Open navigation" aria-expanded={isSidebarOpen} onClick={() => setSidebarOpen(true)}
                 className="text-slate-500 p-2 -ml-2 hover:bg-slate-100 rounded-xl transition-colors"
             >
                 <Menu size={24} />
             </button>
           </div>
 
-          <div className="hidden lg:block">
+          <div className="hidden xl:block">
             <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                 {location.pathname === '/' && `Welcome back, ${userProfile?.displayName || user?.email?.split('@')[0]} 👋`}
                 {location.pathname === '/borrowers' && 'Borrower Management'}
@@ -120,9 +122,9 @@ export const Layout = ({ children }: LayoutProps) => {
             </h1>
           </div>
 
-          <div className="flex items-center space-x-4 lg:space-x-6">
+          <div className="flex items-center space-x-2 sm:space-x-4">
              {/* Global Search and Add Loan */}
-             <div className="relative hidden md:block w-64">
+             <div className="relative hidden md:block w-48 2xl:w-64">
                 <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
                 <input 
                     type="text" 
@@ -135,7 +137,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
              <button 
                 onClick={() => setLoanModalOpen(true)}
-                className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-brand-500/20 hidden sm:block active:scale-95"
+                className="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-lg shadow-brand-500/20 shrink-0 active:scale-95"
              >
                 + Add Loan
              </button>
@@ -153,7 +155,7 @@ export const Layout = ({ children }: LayoutProps) => {
                         className="w-full h-full rounded-full bg-white border-2 border-white"
                     />
                 </Link>
-                <div className="hidden lg:block text-sm">
+                <div className="hidden xl:block text-sm">
                   <Link to="/profile" className="block font-bold text-slate-900 line-clamp-1 hover:text-brand-600 transition-colors">
                       {userProfile?.displayName || user?.email?.split('@')[0]}
                   </Link>
@@ -166,7 +168,7 @@ export const Layout = ({ children }: LayoutProps) => {
         </header>
 
         {/* Scrollable Main Area */}
-        <main className="flex-1 overflow-y-auto px-6 lg:px-10 pb-10 no-scrollbar">
+        <main className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 pb-10">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

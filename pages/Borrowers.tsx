@@ -74,7 +74,7 @@ export const Borrowers = () => {
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Borrowers</h2>
             <p className="text-slate-500 mt-1">Manage client profiles and history.</p>
         </div>
-        <div className="flex w-full sm:w-auto space-x-3">
+        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
             <div className="relative flex-1 sm:w-64">
                 <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" size={18} />
                 <input 
@@ -95,7 +95,7 @@ export const Borrowers = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredBorrowers.map(borrower => (
           <div key={borrower.id} className="bg-white rounded-2xl border border-slate-100 shadow-soft hover:shadow-lg hover:border-slate-200 transition-all duration-300 group">
             <div className="p-6">
