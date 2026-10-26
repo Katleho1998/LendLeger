@@ -105,7 +105,7 @@ export const Profile = () => {
         <p className="text-slate-500 mt-1">Manage your personal profile and business details.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Left Column: Avatar & Summary */}
         <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm text-center">
@@ -240,7 +240,7 @@ export const Profile = () => {
                     <p className="text-xs text-slate-500 mt-2">This will appear on reports and generated messages.</p>
                 </div>
 
-                <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100">
+                <div className="flex flex-wrap gap-4 items-center justify-between mt-8 pt-6 border-t border-slate-100">
                     {message ? (
                         <span className={`text-sm font-medium ${message.includes('Error') ? 'text-rose-600' : 'text-emerald-600'}`}>
                             {message}

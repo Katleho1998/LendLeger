@@ -1,3 +1,4 @@
+import { matchesLoanSearch } from '../utils/search';
 import React, { useMemo } from 'react';
 import { useStore } from '../services/storage';
 import { Download, FileText, TrendingUp, Ban, Clock3, Wallet } from 'lucide-react';
@@ -50,16 +51,18 @@ const ReportCard = ({ icon, iconBg, title, description, onDownload, disabled }: 
 );
 
 export const Reports = () => {
-  const { loans, borrowers, startingCapital } = useStore();
+  const { loans: allLoans, borrowers, startingCapital, searchTerm } = useStore();
+  const loans = useMemo(() => allLoans.filter(l => matchesLoanSearch(l, borrowers, searchTerm)), [allLoans, borrowers, searchTerm]);
 
   const metrics = useMemo(() => computePortfolioMetrics(loans), [loans]);
-  const availableToLend = startingCapital - metrics.totalPrincipal + metrics.totalCollected;
+  const capitalMetrics = computePortfolioMetrics(allLoans);
+  const availableToLend = startingCapital - capitalMetrics.totalPrincipal + capitalMetrics.totalCollected;
 
   return (
     <div className="space-y-8">
         <div>
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-2">Analytics &amp; Reports</h2>
-            <p className="text-slate-500 mt-1">Live performance numbers and downloadable summaries.</p>
+            <p className="text-slate-500 mt-1">Live performance numbers and downloadable summaries. Search filters loan reports; available capital always covers the entire portfolio.</p>
         </div>
 
         {/* At-a-glance analytics */}

@@ -1,3 +1,4 @@
+import { matchesBorrowerSearch } from '../utils/search';
 import React, { useState } from 'react';
 import { useStore } from '../services/storage';
 import { Plus, Search, Phone, CreditCard, AlertTriangle, User, MoreHorizontal, Trash2, Edit } from 'lucide-react';
@@ -62,10 +63,7 @@ export const Borrowers = () => {
       setActiveMenu(null);
   }
 
-  const filteredBorrowers = borrowers.filter(b =>
-    b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.phone.includes(searchTerm)
-  );
+  const filteredBorrowers = borrowers.filter(b => matchesBorrowerSearch(b, searchTerm));
 
   return (
     <div className="space-y-8" onClick={() => setActiveMenu(null)}>
@@ -96,7 +94,7 @@ export const Borrowers = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredBorrowers.map(borrower => (
+        {filteredBorrowers.length === 0 && <p role="status" className="text-slate-500 py-8">No borrowers match your search.</p>}{filteredBorrowers.map(borrower => (
           <div key={borrower.id} className="bg-white rounded-2xl border border-slate-100 shadow-soft hover:shadow-lg hover:border-slate-200 transition-all duration-300 group">
             <div className="p-6">
               <div className="flex justify-between items-start mb-6 relative">

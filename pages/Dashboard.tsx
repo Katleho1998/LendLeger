@@ -1,345 +1,48 @@
-import React, { useMemo, useState } from 'react';
+import { matchesLoanSearch } from '../utils/search';
+import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowUpRight, Wallet, TrendingUp, Banknote, Clock, Users, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { LineChart, Line, Legend, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useStore } from '../services/storage';
-import { MoreHorizontal, ArrowUpRight, ArrowDownRight, CheckCircle2, Clock, RefreshCw, FileText, Wallet, Settings as SettingsIcon } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { LoanStatus } from '../types';
-import { useNavigate } from 'react-router-dom';
 import { computePortfolioMetrics } from '../utils/analytics';
-
-const StatCard = ({ title, value, badgeValue, badgeType }: any) => {
-  const isPositive = badgeType === 'positive';
-  const badgeColor = isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600';
-  const badgeIcon = isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />;
-
-  return (
-    <div className="bg-white p-6 rounded-2xl shadow-soft border border-slate-100 hover:shadow-lg hover:border-slate-200 transition-all duration-300 group min-w-0">
-      <div className="flex justify-between items-start mb-4 gap-2">
-        <div className="flex items-center space-x-2 min-w-0">
-            <div className={`w-2 h-2 rounded-full shrink-0 ${title.includes('Overdue') || title.includes('Written Off') ? 'bg-rose-500' : 'bg-brand-500'}`}></div>
-            <h3 className="text-sm font-semibold text-slate-500 truncate">{title}</h3>
-        </div>
-        <MoreHorizontal size={20} className="text-slate-300 shrink-0" />
-      </div>
-
-      <div className="flex items-end flex-wrap gap-x-3 gap-y-1">
-        <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight truncate">{value}</span>
-        {badgeValue && (
-            <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-bold ${badgeColor} mb-1.5 shrink-0`}>
-                {badgeIcon}
-                <span>{badgeValue}</span>
-            </div>
-        )}
-      </div>
-      <p className="text-xs text-slate-400 mt-2 font-medium">Vs last month</p>
-    </div>
-  );
-};
-
+const money = (value: number) => `R ${value.toLocaleString('en-ZA', {maximumFractionDigits: 2})}`;
 export const Dashboard = () => {
-  const { loans, searchTerm, startingCapital } = useStore();
-  const navigate = useNavigate();
-  const [showMenu, setShowMenu] = useState<string | null>(null);
-
-  const filteredLoans = loans.filter(l =>
-     l.id.includes(searchTerm) ||
-     l.status.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Capital pool: tracks actual cash movement against the manually-entered starting
-  // capital (set on the Profile / Account Settings page), independent of the search
-  // filter above -- it's a running total across every loan, not just the visible ones.
-  const capital = useMemo(() => {
-    const m = computePortfolioMetrics(loans);
-    const availableToLend = startingCapital - m.totalPrincipal + m.totalCollected;
-    // Total Value: what the business is actually worth right now. Net Profit itself only
-    // counts fully-paid loans (write-offs are shown as their own separate figure elsewhere),
-    // but "what am I actually worth" has to account for confirmed capital losses too, or this
-    // tile would overstate net worth once anything's been written off -- so it's the one place
-    // profit and write-off loss are combined into a single true bottom line.
-    const trueBottomLine = m.netProfit + m.writeOffLoss;
-    const totalValue = startingCapital + trueBottomLine;
-    const growthPercent = startingCapital > 0 ? (trueBottomLine / startingCapital) * 100 : null;
-    return { disbursed: m.totalPrincipal, collected: m.totalCollected, availableToLend, netProfit: m.netProfit, totalValue, growthPercent };
-  }, [loans, startingCapital]);
-
-  const metrics = useMemo(() => {
-    const m = computePortfolioMetrics(filteredLoans);
-    return {
-      totalLent: m.totalPrincipal,
-      totalCollected: m.totalCollected,
-      outstanding: m.totalOutstanding,
-      netProfit: m.netProfit,
-      overdueCount: m.overdueCount,
-      overdueAmount: m.overdueAmount,
-      activeCount: m.activeCount,
-      writtenOff: m.totalWrittenOff,
-      defaultedCount: m.defaultedCount
-    };
-  }, [filteredLoans]);
-
-  // Chart Data
-  const chartData = [
-    { name: 'Jan', lent: 4000, collected: 2400 },
-    { name: 'Feb', lent: 3000, collected: 1398 },
-    { name: 'Mar', lent: 2000, collected: 9800 },
-    { name: 'Apr', lent: 2780, collected: 3908 },
-    { name: 'May', lent: 1890, collected: 4800 },
-    { name: 'Jun', lent: 2390, collected: 3800 },
-    { name: 'Jul', lent: 3490, collected: 4300 },
-  ];
-
-  // Pie Data
-  const pieData = [
-    { name: 'Active', value: metrics.activeCount, color: '#3b82f6' }, // Brand Blue
-    { name: 'Overdue', value: metrics.overdueCount, color: '#f43f5e' }, // Rose
-    { name: 'Paid', value: filteredLoans.filter(l => l.status === LoanStatus.PAID).length, color: '#10b981' }, // Emerald
-    { name: 'Written Off', value: metrics.defaultedCount, color: '#94a3b8' }, // Slate
-  ];
-  const totalLoans = filteredLoans.length || 1;
-  const paidPercentage = Math.round((filteredLoans.filter(l => l.status === LoanStatus.PAID).length / totalLoans) * 100);
-
-  return (
-    <div className="space-y-8" onClick={() => setShowMenu(null)}>
-        
-      {/* Title Section */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Financial Overview</h2>
-        <p className="text-slate-500 mt-1">Monitor your lending performance and cashflow.</p>
-      </div>
-
-      {/* Capital Pool */}
-      <div className="bg-slate-900 p-6 sm:p-8 rounded-2xl shadow-soft relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 w-48 h-48 bg-brand-500/20 rounded-full blur-3xl"></div>
-        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-brand-500/20 flex items-center justify-center text-brand-400 shrink-0">
-              <Wallet size={24} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-400">Available to Lend</p>
-              <p className={`text-3xl font-bold tracking-tight ${capital.availableToLend < 0 ? 'text-rose-400' : 'text-white'}`}>
-                R{capital.availableToLend.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-              </p>
-              {startingCapital === 0 && (
-                <button onClick={() => navigate('/profile')} className="text-xs font-semibold text-brand-400 hover:text-brand-300 flex items-center gap-1 mt-1">
-                  <SettingsIcon size={12} /> Set your starting capital in Settings
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-x-8 gap-y-3 lg:border-l lg:border-slate-800 lg:pl-8">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Starting Capital</p>
-              <p className="text-lg font-bold text-white mt-0.5">R{startingCapital.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Disbursed</p>
-              <p className="text-lg font-bold text-white mt-0.5">-R{capital.disbursed.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Collected</p>
-              <p className="text-lg font-bold text-white mt-0.5">+R{capital.collected.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Value</p>
-              <p className="text-lg font-bold text-emerald-400 mt-0.5">R{capital.totalValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
-              {capital.growthPercent !== null && (
-                <p className={`text-[11px] font-semibold mt-0.5 ${capital.growthPercent >= 0 ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
-                  {capital.growthPercent >= 0 ? '+' : ''}{capital.growthPercent.toFixed(1)}% since start
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Top Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-6">
-        <StatCard
-          title="Total Lent"
-          value={`R${metrics.totalLent.toLocaleString()}`}
-          badgeValue="20%"
-          badgeType="positive"
-        />
-        <StatCard
-          title="Active Loans"
-          value={metrics.activeCount}
-          badgeValue="5%"
-          badgeType="positive"
-        />
-         <StatCard
-          title="Net Profit"
-          value={`R${metrics.netProfit.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
-          badgeValue="12%"
-          badgeType="positive"
-        />
-        <StatCard
-          title="Overdue Loans"
-          value={metrics.overdueCount}
-          badgeValue="2%"
-          badgeType="negative"
-        />
-        <StatCard
-          title="Written Off"
-          value={`R${metrics.writtenOff.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
-          badgeValue={`${metrics.defaultedCount}`}
-          badgeType="negative"
-        />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Bar Chart */}
-        <div className="lg:col-span-2 bg-white p-5 sm:p-8 rounded-2xl shadow-soft border border-slate-100 relative">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-                <h3 className="text-lg font-bold text-slate-800">Cashflow Overview</h3>
-                <p className="text-sm text-slate-500 mt-0.5">Money Lent vs Collected</p>
-            </div>
-            <div className="relative">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); setShowMenu(showMenu === 'chart1' ? null : 'chart1'); }}
-                    className="text-slate-400 hover:text-brand-600 transition-colors p-1 rounded-lg hover:bg-slate-50"
-                >
-                    <MoreHorizontal />
-                </button>
-                {showMenu === 'chart1' && (
-                    <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-xl border border-slate-100 z-10 py-1">
-                        <button className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-brand-600 flex items-center gap-2">
-                            <RefreshCw size={14} /> Refresh Data
-                        </button>
-                        <button className="w-full text-left px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-brand-600 flex items-center gap-2">
-                            <FileText size={14} /> Export CSV
-                        </button>
-                    </div>
-                )}
-            </div>
-          </div>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barGap={8}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 500}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 500}} />
-                <Tooltip 
-                    cursor={{fill: '#f8fafc'}} 
-                    contentStyle={{
-                        borderRadius: '12px', 
-                        border: 'none', 
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                        padding: '12px',
-                        color: '#1e293b'
-                    }} 
-                />
-                <Bar name="Lent" dataKey="lent" fill="#93c5fd" radius={[6, 6, 6, 6]} barSize={24} />
-                <Bar name="Collected" dataKey="collected" fill="#2563eb" radius={[6, 6, 6, 6]} barSize={24} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Donut Chart */}
-        <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-soft border border-slate-100 flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-slate-800">Portfolio Health</h3>
-            <button className="text-slate-400 hover:text-brand-600 transition-colors"><MoreHorizontal /></button>
-          </div>
-          
-          <div className="h-64 relative flex items-center justify-center">
-             <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                        data={pieData}
-                        innerRadius={65}
-                        outerRadius={90}
-                        paddingAngle={5}
-                        dataKey="value"
-                        stroke="none"
-                        startAngle={90}
-                        endAngle={-270}
-                        cornerRadius={10}
-                    >
-                        {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                    </Pie>
-                </PieChart>
-             </ResponsiveContainer>
-             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-4xl font-bold text-slate-900 tracking-tight">{paidPercentage}%</span>
-                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Repaid</span>
-             </div>
-          </div>
-
-          <div className="flex justify-center space-x-6">
-              {pieData.map(item => (
-                  <div key={item.name} className="flex items-center space-x-2">
-                      <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color}}></div>
-                      <span className="text-sm text-slate-600 font-medium">{item.name}</span>
-                  </div>
-              ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Lists Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         {/* Recent Activity List */}
-         <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-soft border border-slate-100">
-            <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Recent Loans</h3>
-                <button onClick={() => navigate('/loans')} className="text-sm font-semibold text-brand-600 hover:text-brand-700 transition-colors">View All</button>
-            </div>
-            <div className="space-y-4">
-                {filteredLoans.slice(0, 4).map(loan => (
-                    <div key={loan.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer group border border-transparent hover:border-slate-200" onClick={() => navigate('/loans')}>
-                        <div className="flex items-center space-x-4">
-                            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-brand-600 ring-1 ring-slate-100">
-                                <Clock size={20} />
-                            </div>
-                            <div>
-                                <h4 className="font-bold text-slate-800 group-hover:text-brand-600 transition-colors">Loan #{loan.id.substring(0,4)}</h4>
-                                <p className="text-xs text-slate-500 font-medium mt-0.5">Due {new Date(loan.dueDate).toLocaleDateString()}</p>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                             <span className="block font-bold text-slate-900">R{loan.principal}</span>
-                             <span className={`text-xs font-bold ${loan.status === 'OVERDUE' ? 'text-rose-500' : 'text-emerald-500'}`}>{loan.status}</span>
-                        </div>
-                    </div>
-                ))}
-                 {filteredLoans.length === 0 && <div className="text-slate-400 text-center py-4 text-sm">No loans found.</div>}
-            </div>
-         </div>
-
-         {/* Quick Actions / Reminders */}
-         <div className="bg-white p-5 sm:p-8 rounded-2xl shadow-soft border border-slate-100">
-             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-800">Reminders</h3>
-                <span className="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-xs font-bold">High Priority</span>
-            </div>
-            <div className="space-y-3">
-                {filteredLoans.filter(l => l.status === LoanStatus.OVERDUE).slice(0, 3).map(loan => (
-                     <div key={loan.id} className="flex items-start space-x-3 p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50 rounded-lg transition-colors">
-                         <div className="mt-1.5">
-                             <div className="w-2 h-2 bg-rose-500 rounded-full ring-2 ring-rose-100"></div>
-                         </div>
-                         <div>
-                             <p className="text-sm font-semibold text-slate-800">Collect payment from loan #{loan.id.substring(0,6)}</p>
-                             <p className="text-xs text-slate-500 mt-1 font-medium">R{loan.balance.toFixed(2)} overdue since {new Date(loan.dueDate).toLocaleDateString()}</p>
-                         </div>
-                     </div>
-                ))}
-                {filteredLoans.filter(l => l.status === LoanStatus.OVERDUE).length === 0 && (
-                     <div className="flex flex-col items-center justify-center h-40 text-slate-400">
-                         <CheckCircle2 size={32} className="mb-2 text-emerald-300" />
-                         <p className="font-medium text-sm">No overdue loans. Great job!</p>
-                     </div>
-                )}
-            </div>
-         </div>
-      </div>
-    </div>
-  );
+ const { loans, borrowers, startingCapital, searchTerm } = useStore();
+ const selected = useMemo(() => loans.filter(l => matchesLoanSearch(l, borrowers, searchTerm)), [loans, borrowers, searchTerm]);
+ const metrics = computePortfolioMetrics(selected);
+ const all = computePortfolioMetrics(loans);
+ const available = startingCapital - all.totalPrincipal + all.totalCollected;
+ const value = startingCapital + all.netProfit + all.writeOffLoss;
+ const open = selected.filter(l => l.status === LoanStatus.ACTIVE || l.status === LoanStatus.OVERDUE);
+ const outstanding = open.reduce((sum,l) => sum + l.balance, 0);
+ const overdueShare = outstanding > 0 ? metrics.overdueAmount / outstanding * 100 : 0;
+ const paidRate = selected.length ? metrics.paidCount / selected.length * 100 : 0;
+ const dueSoon = open.filter(l => { const days = (new Date(l.dueDate).getTime() - Date.now()) / 86400000; return days >= 0 && days <= 7; });
+ const months = useMemo(() => Array.from({length: 6}, (_,i) => {
+   const date = new Date(); date.setDate(1); date.setMonth(date.getMonth() - 5 + i);
+   const sameMonth = (raw: string) => { const d = new Date(raw); return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth(); };
+   return {name: date.toLocaleDateString('en-ZA',{month:'short'}), lent: selected.filter(l => sameMonth(l.startDate)).reduce((s,l) => s+l.principal,0), collected: selected.flatMap(l=>l.payments).filter(p=>p.method !== 'PENALTY' && sameMonth(p.date)).reduce((s,p)=>s+p.amount,0)};
+ }), [selected]);
+ const cards = [
+  {label:'Total disbursed', value:money(metrics.totalPrincipal), note:`${selected.length} loans issued`, icon:Banknote, tone:'blue'},
+  {label:'Cash collected', value:money(metrics.totalCollected), note:'Actual payments received', icon:Wallet, tone:'green'},
+  {label:'Outstanding balance', value:money(outstanding), note:`${open.length} open loans · includes interest`, icon:Clock, tone:'blue'},
+  {label:'Realized profit', value:money(metrics.netProfit), note:'From fully repaid loans', icon:TrendingUp, tone:'green'},
+  {label:'Overdue balance', value:money(metrics.overdueAmount), note:`${metrics.overdueCount} loans need attention`, icon:AlertTriangle, tone:'rose'},
+  {label:'Capital written off', value:money(metrics.totalWrittenOff), note:`${metrics.defaultedCount} written-off loans`, icon:ShieldCheck, tone:'rose'},
+ ];
+ const statuses = [{label:'Active',count:metrics.activeCount,color:'#2563eb'},{label:'Overdue',count:metrics.overdueCount,color:'#f59e0b'},{label:'Paid',count:metrics.paidCount,color:'#10b981'},{label:'Written off',count:metrics.defaultedCount,color:'#f43f5e'}];
+ const recent = [...selected].sort((a,b)=>new Date(b.startDate).getTime()-new Date(a.startDate).getTime()).slice(0,5);
+ return <div className="dashboard">
+  <div className="dashboard-heading"><div><p className="eyebrow">PORTFOLIO INTELLIGENCE</p><h2>Your money, at a glance.</h2><p>A clear view of your capital, collections and lending performance.</p></div><Link to="/reports" className="secondary-button">View reports <ArrowUpRight size={17}/></Link></div>
+  {searchTerm && <p className="filter-notice">Showing matching loans. Capital overview always includes your entire portfolio.</p>}
+  <section className="capital-hero" aria-label="Capital overview"><div><div className="hero-label"><Wallet size={19}/> AVAILABLE TO LEND</div><p className="hero-number">{money(available)}</p><p className="hero-caption">Your available cash after disbursements and collections.</p><Link to="/profile" className="hero-link">Manage starting capital <ArrowUpRight size={16}/></Link></div><div className="capital-summary"><div><span>Starting capital</span><strong>{money(startingCapital)}</strong></div><div><span>Total capital value</span><strong>{money(value)}</strong></div><div><span>Return on starting capital</span><strong>{startingCapital > 0 ? `${((all.netProfit+all.writeOffLoss)/startingCapital*100).toFixed(1)}%` : '—'}</strong></div><div><span>Borrowers</span><strong>{borrowers.length}</strong></div></div></section>
+  <section className="kpi-grid" aria-label="Key performance indicators">{cards.map(({label,value,note,icon:Icon,tone})=><article className="kpi-card" key={label}><div className="kpi-top"><span>{label}</span><div className={`metric-icon ${tone}`}><Icon size={19}/></div></div><p className="kpi-value">{value}</p><p className="kpi-note">{note}</p></article>)}</section>
+  <div className="analytics-grid"><section className="dashboard-panel"><div className="panel-heading"><div><h3>Cashflow performance</h3><p>Disbursements and actual collections · last six months</p></div></div><div className="chart-legend"><span><i style={{background:'#c7d2fe'}}/>Disbursed</span><span><i style={{background:'#2563eb'}}/>Collected</span></div><div className="cashflow-chart"><ResponsiveContainer width="100%" height="100%"><BarChart data={months} barGap={4} margin={{left:0,right:0,top:12,bottom:0}}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:11}}/><YAxis width={48} axisLine={false} tickLine={false} tick={{fontSize:10}} tickFormatter={v=>Math.abs(v)>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/><Tooltip formatter={(v)=>money(Number(v))} contentStyle={{borderRadius:12,borderColor:'#e2e8f0'}}/><Bar name="Disbursed" dataKey="lent" fill="#c7d2fe" radius={[5,5,0,0]} maxBarSize={26}/><Bar name="Collected" dataKey="collected" fill="#2563eb" radius={[5,5,0,0]} maxBarSize={26}/></BarChart></ResponsiveContainer></div>{selected.length === 0 && <p className="empty-caption">Add your first loan to start tracking cashflow.</p>}</section>
+  <section className="dashboard-panel"><div className="panel-heading"><div><h3>Portfolio health</h3><p>Understand your loan mix and exposure</p></div><ShieldCheck size={22} className="text-blue-600"/></div><div className="health-score"><strong>{paidRate.toFixed(0)}<small>%</small></strong><span>of loans fully repaid</span></div><div className="status-track">{statuses.map(s=><div key={s.label} style={{width:`${selected.length?s.count/selected.length*100:0}%`,background:s.color}}/>)}</div><div className="status-grid">{statuses.map(s=><div key={s.label}><span><i style={{background:s.color}}/>{s.label}</span><strong>{s.count}</strong></div>)}</div><div className="risk-summary"><span>Overdue share of open balance</span><strong>{overdueShare.toFixed(1)}%</strong></div></section></div>
+  <section className="dashboard-panel" aria-label="Monthly lending and collection trends"><div className="panel-heading"><div><h3>Lending &amp; collection trends</h3><p>Monthly cash movement · last six months</p></div></div><div className="cashflow-chart"><ResponsiveContainer width="100%" height="100%"><LineChart data={months} margin={{left:0,right:16,top:12,bottom:0}}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:11}}/><YAxis width={48} axisLine={false} tickLine={false} tick={{fontSize:10}} tickFormatter={v=>Math.abs(v)>=1000?`${(v/1000).toFixed(0)}k`:String(v)}/><Tooltip formatter={v=>money(Number(v))} contentStyle={{borderRadius:12,borderColor:'#e2e8f0'}}/><Legend wrapperStyle={{fontSize:12,paddingTop:16}}/><Line type="monotone" name="Disbursed" dataKey="lent" stroke="#6366f1" strokeWidth={3} dot={{r:4,strokeWidth:2,fill:'#fff'}} activeDot={{r:6}}/><Line type="monotone" name="Collected" dataKey="collected" stroke="#10b981" strokeWidth={3} dot={{r:4,strokeWidth:2,fill:'#fff'}} activeDot={{r:6}}/></LineChart></ResponsiveContainer></div>{selected.length===0&&<p className="empty-caption">Add loans and record payments to see your trends.</p>}</section>
+  <div className="detail-grid"><section className="dashboard-panel"><div className="panel-heading"><div><h3>Recent loans</h3><p>Your latest lending activity</p></div><Link to="/loans">View all <ArrowUpRight size={15}/></Link></div><div className="recent-list">{recent.map(l=><Link to="/loans" className="recent-row" key={l.id}><div className="loan-avatar"><Users size={19}/></div><div className="loan-info"><strong>{borrowers.find(b=>b.id===l.borrowerId)?.name || `Loan #${l.id.slice(0,6)}`}</strong><span>Due {new Date(l.dueDate).toLocaleDateString('en-ZA')}</span></div><div className="loan-amount"><strong>{money(l.principal)}</strong><span className={`loan-status status-${l.status.toLowerCase()}`}>{l.status === LoanStatus.DEFAULTED ? 'Written off' : l.status.toLowerCase()}</span></div></Link>)}{!recent.length && <div className="empty-state"><Banknote size={28}/><strong>Your portfolio starts here</strong><p>Add a loan to see recent activity.</p></div>}</div></section>
+  <section className="dashboard-panel"><div className="panel-heading"><div><h3>Collection priorities</h3><p>Keep your next actions in focus</p></div><Clock size={21} className="text-slate-400"/></div><Link to="/loans" className="priority-card priority-overdue"><span>Overdue now<strong>{metrics.overdueCount} loans</strong></span><strong>{money(metrics.overdueAmount)}</strong></Link><Link to="/loans" className="priority-card"><span>Due in the next 7 days<strong>{dueSoon.length} loans</strong></span><strong>{money(dueSoon.reduce((s,l)=>s+l.balance,0))}</strong></Link><p className="priority-note">Review loans to record payments, follow up with borrowers, or update due dates.</p></section></div>
+ </div>;
 };

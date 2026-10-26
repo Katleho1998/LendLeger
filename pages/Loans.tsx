@@ -1,3 +1,5 @@
+import { LoanFilters } from '../components/LoanFilters';
+import { matchesLoanSearch } from '../utils/search';
 import React, { useState } from 'react';
 import { useStore } from '../services/storage';
 import { Plus, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, Trash2, User, Ban } from 'lucide-react';
@@ -12,6 +14,7 @@ export const Loans = () => {
     const { user } = useAuth();
     // Data is shared across all users, but edits/payments/deletes are owner-only (enforced by Supabase RLS).
     const isOwner = (l: Loan) => !l.userId || l.userId === user?.id;
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -28,12 +31,7 @@ export const Loans = () => {
     setPaymentAmount('');
   };
 
-  const filteredLoans = loans.filter(l => {
-      const b = borrowers.find(bor => bor.id === l.borrowerId);
-      const searchLower = searchTerm.toLowerCase();
-      const borrowerName = b?.name?.toLowerCase() || '';
-      return borrowerName.includes(searchLower) || l.status.toLowerCase().includes(searchLower) || l.id.includes(searchLower);
-  });
+  const filteredLoans = loans.filter(l => matchesLoanSearch(l, borrowers, searchTerm) && (statusFilter === 'ALL' || l.status === statusFilter));
 
   const handleDeleteLoan = (e: React.MouseEvent, id: string) => {
       e.preventDefault();
@@ -60,23 +58,7 @@ export const Loans = () => {
         </button>
       </div>
 
-      {/* Filter / Search Bar */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 bg-white p-2 rounded-2xl shadow-sm border border-slate-200 w-full">
-          <div className="flex items-center space-x-4 flex-1">
-              <div className="bg-slate-50 p-2 rounded-xl text-slate-400"><Search size={20} /></div>
-              <input 
-                type="text" 
-                placeholder="Search loans..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-transparent outline-none text-sm text-slate-900 placeholder-slate-400 flex-1 font-medium" 
-              />
-          </div>
-          <div className="h-[1px] sm:h-6 sm:w-[1px] bg-slate-200"></div>
-          <button className="flex items-center justify-center sm:justify-start space-x-2 text-slate-500 text-sm px-2 hover:text-brand-600 font-medium transition-colors">
-              <Filter size={16} /> <span>Filter</span>
-          </button>
-      </div>
+      <LoanFilters search={searchTerm} onSearch={setSearchTerm} status={statusFilter} onStatus={setStatusFilter} count={filteredLoans.length}/>
 
       <div className="space-y-4">
         {filteredLoans.length === 0 && <div className="text-center py-20 text-slate-400 bg-white rounded-3xl border border-dashed border-slate-200 font-medium">No active loans found matching your criteria.</div>}
@@ -179,7 +161,7 @@ export const Loans = () => {
 
                     {isExpanded && (
                         <div className="bg-slate-50 p-4 sm:p-8 border-t border-slate-100">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-10">
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-10">
                                 <div>
                                     <h4 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
                                         <div className="w-1 h-6 bg-brand-500 rounded-full"></div>
@@ -266,7 +248,7 @@ export const Loans = () => {
                                                     onChange={(e) => setPaymentAmount(e.target.value)}
                                                 />
                                             </div>
-                                            <div className="flex gap-3">
+                                            <div className="flex flex-wrap gap-3">
                                                 <select
                                                     className="border border-slate-200 rounded-xl p-3 bg-white outline-none text-slate-900 focus:ring-2 focus:ring-emerald-100 min-w-[120px]"
                                                     value={paymentMethod}
