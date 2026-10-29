@@ -1,0 +1,18 @@
+const fs=require('fs');
+const ts=require('typescript');
+const assert=require('node:assert/strict');
+require.extensions['.ts']=(module,file)=>module._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,file);
+const {correctPayment}=require('../utils/payments.ts');
+const base={totalRepayment:110,dueDate:'2099-01-01',status:'PAID',payments:[{id:'p',amount:150,method:'CASH',date:'2026-01-01'}]};
+assert.equal(correctPayment(base,'p',120).balance,0);
+assert.equal(correctPayment(base,'p',100).balance,10);
+assert.equal(correctPayment(base,'p',100).status,'ACTIVE');
+assert.equal(correctPayment({...base,dueDate:'2000-01-01'},'p',100).status,'OVERDUE');
+const penalty={...base,totalRepayment:120,payments:[...base.payments,{id:'pen',amount:-10,method:'PENALTY'}]};
+assert.equal(correctPayment(penalty,'p',100).balance,20);
+assert.throws(()=>correctPayment(penalty,'pen',5));
+const writtenOff=correctPayment({...base,status:'DEFAULTED'},'p',80);
+assert.equal(writtenOff.balance,0);assert.equal(writtenOff.writeOffAmount,30);assert.equal(writtenOff.status,'DEFAULTED');
+for(const invalid of [0,-1,NaN,Infinity,1.234])assert.throws(()=>correctPayment(base,'p',invalid));
+assert.equal(base.payments[0].amount,150);
+console.log('Payment correction checks passed: overpayments, reopening, overdue, penalties, write-offs, validation and original-record preservation.');

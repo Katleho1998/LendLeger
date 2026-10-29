@@ -1,3 +1,4 @@
+import { correctPayment } from '../utils/payments';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Borrower, Loan, Payment, AuditLog, LoanStatus, InterestType } from '../types';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -16,6 +17,7 @@ interface StoreContextType {
   addLoan: (l: Omit<Loan, 'id' | 'status' | 'balance' | 'payments' | 'logs' | 'totalRepayment'>) => void;
   deleteLoan: (id: string) => void;
   addPayment: (loanId: string, amount: number, method: 'CASH' | 'TRANSFER' | 'OTHER') => void;
+  updatePayment: (loanId: string, paymentId: string, amount: number) => Promise<void>;
   recalculateLoans: () => void;
   updateLoanDueDate: (loanId: string, newDueDate: string) => Promise<void>;
   writeOffLoan: (loanId: string, reason: string) => Promise<void>;
@@ -467,6 +469,21 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     }
   };
 
+  const updatePayment = async (loanId: string, paymentId: string, amount: number) => {
+    if (!user || !isSupabaseConfigured) throw new Error('Please sign in before editing a payment.');
+    const { data: row, error: readError } = await supabase.from('loans').select('*').eq('id', loanId).single();
+    if (readError) throw readError;
+    if (!row || (row.user_id && row.user_id !== user.id)) throw new Error('You can only edit payments on loans you created.');
+    const current = { id: row.id, payments: row.payments || [], totalRepayment: row.total_repayment, dueDate: row.due_date, status: row.status } as Loan;
+    const original = current.payments.find(p => p.id === paymentId);
+    const corrected = correctPayment(current, paymentId, amount);
+    const payload = { payments: corrected.payments, balance: corrected.balance, status: corrected.status, ...(corrected.writeOffAmount !== undefined ? { write_off_amount: corrected.writeOffAmount } : {}) };
+    const { data: updated, error } = await supabase.from('loans').update(payload).eq('id', loanId).eq('payments', JSON.stringify(row.payments || [])).eq('balance', row.balance).eq('status', row.status).eq('total_repayment', row.total_repayment).eq('due_date', row.due_date).select();
+    if (error) throw error;
+    if (!updated?.length) throw new Error('This loan changed or you do not have permission. Refresh the page and try again.');
+    setLoans(prev => prev.map(l => l.id === loanId ? { ...l, ...corrected } : l));
+    logAction('UPDATE_PAYMENT', `Corrected payment ${paymentId}: R${original?.amount.toFixed(2)} to R${amount.toFixed(2)}`, loanId);
+  };
   const recalculateLoans = async () => {
     const now = new Date();
 
@@ -661,6 +678,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       addLoan,
       deleteLoan,
       addPayment,
+      updatePayment,
       recalculateLoans,
       updateLoanDueDate,
       writeOffLoan,

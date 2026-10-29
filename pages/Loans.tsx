@@ -1,3 +1,4 @@
+import { EditPaymentModal } from '../components/EditPaymentModal';
 import { LoanFilters } from '../components/LoanFilters';
 import { matchesLoanSearch } from '../utils/search';
 import React, { useState } from 'react';
@@ -5,15 +6,16 @@ import { useStore } from '../services/storage';
 import { Plus, DollarSign, Calendar, ChevronDown, ChevronUp, Search, Filter, MoreHorizontal, Trash2, User, Ban } from 'lucide-react';
 import { EditDueDateModal } from '../components/EditDueDateModal';
 import { WriteOffLoanModal } from '../components/WriteOffLoanModal';
-import { Loan, LoanStatus } from '../types';
+import { Loan, LoanStatus, Payment } from '../types';
 import { CreateLoanModal } from '../components/CreateLoanModal';
 import { useAuth } from '../context/AuthContext';
 
 export const Loans = () => {
-    const { borrowers, loans, addPayment, searchTerm, setSearchTerm, deleteLoan, updateLoanDueDate, writeOffLoan } = useStore();
+    const { borrowers, loans, addPayment, updatePayment, searchTerm, setSearchTerm, deleteLoan, updateLoanDueDate, writeOffLoan } = useStore();
     const { user } = useAuth();
     // Data is shared across all users, but edits/payments/deletes are owner-only (enforced by Supabase RLS).
     const isOwner = (l: Loan) => !l.userId || l.userId === user?.id;
+  const [editingPayment, setEditingPayment] = useState<{loanId:string; payment:Payment} | null>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [expandedLoan, setExpandedLoan] = useState<string | null>(null);
@@ -312,12 +314,12 @@ export const Loans = () => {
                                                     <tr>
                                                         <th className="p-4 font-semibold text-xs uppercase tracking-wider">Date</th>
                                                         <th className="p-4 font-semibold text-xs uppercase tracking-wider">Amount</th>
-                                                        <th className="p-4 font-semibold text-xs uppercase tracking-wider">Method</th>
+                                                        <th className="p-4 font-semibold text-xs uppercase tracking-wider">Method</th><th className="p-4"><span className="sr-only">Actions</span></th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
                                                     {loan.payments.length === 0 ? (
-                                                        <tr><td colSpan={3} className="p-6 text-center text-slate-400 font-medium">No payments recorded yet</td></tr>
+                                                        <tr><td colSpan={4} className="p-6 text-center text-slate-400 font-medium">No payments recorded yet</td></tr>
                                                     ) : (
                                                         loan.payments.map(p => (
                                                             <tr key={p.id} className="hover:bg-slate-50 transition-colors">
@@ -334,6 +336,7 @@ export const Loans = () => {
                                                                         {p.method}
                                                                     </span>
                                                                 </td>
+                                                                <td className="p-4">{isOwner(loan) && p.method !== 'PENALTY' && <button type="button" className="text-blue-600 text-xs font-semibold whitespace-nowrap" aria-label={`Edit payment of R${p.amount.toFixed(2)}`} onClick={() => setEditingPayment({loanId:loan.id,payment:p})}>Edit amount</button>}</td>
                                                             </tr>
                                                         ))
                                                     )}
@@ -359,6 +362,7 @@ export const Loans = () => {
         })}
       </div>
       
+      {editingPayment && <EditPaymentModal payment={editingPayment.payment} onClose={()=>setEditingPayment(null)} onSave={amount=>updatePayment(editingPayment.loanId,editingPayment.payment.id,amount)}/>}
       <CreateLoanModal isOpen={isCreateModalOpen} onClose={() => setCreateModalOpen(false)} />
             <EditDueDateModal
                 isOpen={!!editDueLoan}
