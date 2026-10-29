@@ -98,6 +98,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
             payments: d.payments || [],
             logs: [],
             signature: d.signature,
+            penaltyWaivedDueDate: d.penalty_waived_due_date || undefined,
             writeOffAmount: d.write_off_amount ?? undefined,
             writeOffDate: d.write_off_date ?? undefined,
             writeOffReason: d.write_off_reason ?? undefined
@@ -474,7 +475,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     if (!user || !isSupabaseConfigured) throw new Error('Please sign in.');
     const loan = loans.find(l => l.id === loanId);
     const payment = loan?.payments.find(p => p.id === paymentId);
-    if (!loan || !payment || payment.method === 'PENALTY') throw new Error('This payment cannot be changed.');
+    if (!loan || !payment || (!remove && payment.method === 'PENALTY')) throw new Error('This payment cannot be changed.');
     if (loan.userId && loan.userId !== user.id) throw new Error('You can only change your own loans.');
     if (!remove) correctPayment(loan,paymentId,amount!);
     const {error} = await supabase.rpc('change_recorded_payment',{p_loan_id:loanId,p_payment_id:paymentId,p_amount:amount,p_delete:remove,p_expected_amount:payment.amount});
@@ -498,7 +499,8 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
          let shouldApplyPenalty = true;
          const existingPenalty = l.payments.find(p => p.method === 'PENALTY' && new Date(p.date) > dueDate);
          
-         if (existingPenalty) {
+         const waivedForDueDate = l.penaltyWaivedDueDate && new Date(l.penaltyWaivedDueDate).getTime() === dueDate.getTime();
+         if (existingPenalty || waivedForDueDate) {
              shouldApplyPenalty = false;
          }
 
