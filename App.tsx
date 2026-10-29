@@ -17,7 +17,7 @@ const AuditPage = () => {
         <div className="space-y-6">
              <div>
                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight">System Audit Logs</h2>
-                <p className="text-slate-500 mt-1">Complete immutable history of all system actions.</p>
+                <p className="text-slate-500 mt-1">History of recorded actions and who performed them.</p>
              </div>
              
              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -26,7 +26,7 @@ const AuditPage = () => {
                         <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                             <tr>
                                 <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Timestamp</th>
-                                <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Action Type</th>
+                                <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Action Type</th><th className="px-6 py-4">Performed by</th>
                                 <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Description</th>
                                 <th className="px-6 py-4 font-bold text-xs uppercase tracking-wider">Entity ID</th>
                             </tr>
@@ -47,7 +47,7 @@ const AuditPage = () => {
                                             {log.action}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-slate-700 font-medium">
+                                    <td className="px-6 py-4 text-slate-600">{log.actorName || log.actorId || "Not recorded"}</td><td className="px-6 py-4 text-slate-700 font-medium">
                                         {log.details}
                                     </td>
                                     <td className="px-6 py-4 text-slate-400 font-mono text-xs">
@@ -56,7 +56,7 @@ const AuditPage = () => {
                                 </tr>
                             ))}
                             {auditLogs.length === 0 && (
-                                <tr><td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-medium">No activity recorded yet.</td></tr>
+                                <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400 font-medium">No activity recorded yet.</td></tr>
                             )}
                         </tbody>
                     </table>

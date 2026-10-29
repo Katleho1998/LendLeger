@@ -11,10 +11,12 @@ import { CreateLoanModal } from '../components/CreateLoanModal';
 import { useAuth } from '../context/AuthContext';
 
 export const Loans = () => {
-    const { borrowers, loans, addPayment, updatePayment, searchTerm, setSearchTerm, deleteLoan, updateLoanDueDate, writeOffLoan } = useStore();
+    const { borrowers, loans, addPayment, updatePayment, deletePayment, searchTerm, setSearchTerm, deleteLoan, updateLoanDueDate, writeOffLoan } = useStore();
     const { user } = useAuth();
     // Data is shared across all users, but edits/payments/deletes are owner-only (enforced by Supabase RLS).
     const isOwner = (l: Loan) => !l.userId || l.userId === user?.id;
+  const [deletingPayment,setDeletingPayment] = useState<string | null>(null);
+  const [paymentError,setPaymentError] = useState('');
   const [editingPayment, setEditingPayment] = useState<{loanId:string; payment:Payment} | null>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
@@ -60,6 +62,7 @@ export const Loans = () => {
         </button>
       </div>
 
+      {paymentError && <p role="alert" className="text-rose-600">{paymentError}</p>}
       <LoanFilters search={searchTerm} onSearch={setSearchTerm} status={statusFilter} onStatus={setStatusFilter} count={filteredLoans.length}/>
 
       <div className="space-y-4">
@@ -336,7 +339,7 @@ export const Loans = () => {
                                                                         {p.method}
                                                                     </span>
                                                                 </td>
-                                                                <td className="p-4">{isOwner(loan) && p.method !== 'PENALTY' && <button type="button" className="text-blue-600 text-xs font-semibold whitespace-nowrap" aria-label={`Edit payment of R${p.amount.toFixed(2)}`} onClick={() => setEditingPayment({loanId:loan.id,payment:p})}>Edit amount</button>}</td>
+                                                                <td className="p-4">{isOwner(loan) && p.method !== 'PENALTY' && <div className="flex gap-3"><button type="button" className="text-blue-600 text-xs font-semibold whitespace-nowrap" aria-label={`Edit payment of R${p.amount.toFixed(2)}`} onClick={() => setEditingPayment({loanId:loan.id,payment:p})}>Edit amount</button><button type="button" disabled={deletingPayment !== null} className="text-rose-600 text-xs font-semibold disabled:opacity-50" onClick={async()=>{if(!window.confirm('Delete payment of R'+p.amount.toFixed(2)+'? The balance will be recalculated and your identity recorded in the audit log.'))return;setPaymentError('');setDeletingPayment(p.id);try{await deletePayment(loan.id,p.id);}catch(e){setPaymentError(e instanceof Error?e.message:'Unable to delete payment.');}finally{setDeletingPayment(null);}}}>{deletingPayment===p.id?'Deleting…':'Delete'}</button></div>}</td>
                                                             </tr>
                                                         ))
                                                     )}

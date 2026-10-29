@@ -75,6 +75,8 @@ export interface Loan {
 }
 
 export interface AuditLog {
+  actorId?: string;
+  actorName?: string;
   id: string;
   action: string;
   timestamp: string;

@@ -17,6 +17,7 @@ interface StoreContextType {
   addLoan: (l: Omit<Loan, 'id' | 'status' | 'balance' | 'payments' | 'logs' | 'totalRepayment'>) => void;
   deleteLoan: (id: string) => void;
   addPayment: (loanId: string, amount: number, method: 'CASH' | 'TRANSFER' | 'OTHER') => void;
+  deletePayment: (loanId: string, paymentId: string) => Promise<void>;
   updatePayment: (loanId: string, paymentId: string, amount: number) => Promise<void>;
   recalculateLoans: () => void;
   updateLoanDueDate: (loanId: string, newDueDate: string) => Promise<void>;
@@ -104,7 +105,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
 
         const { data: aData, error: aError } = await supabase.from('audit_logs').select('*').order('timestamp', { ascending: false });
         if (aError) throw aError;
-        setAuditLogs(aData as AuditLog[]);
+        setAuditLogs(aData.map((d:any) => ({...d,entityId:d.entity_id,actorId:d.user_id,actorName:creatorNameOf(d.user_id)})));
 
         // Shared "Capital Pool" setting (single row, id = 'global'). Missing/errored
         // just means it hasn't been set yet -- fall back to 0 rather than failing the page.
@@ -172,14 +173,14 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       const { data, error } = await supabase.from('audit_logs').insert({
         user_id: user.id,
         action,
-        details,
+        details: `${myName || user.email || user.id} (${user.email || user.id}) — ${details}`,
         timestamp: new Date().toISOString(),
         entity_id: entityId || null
       }).select();
       
       if (error) throw error;
       if (data) {
-          setAuditLogs(prev => [data[0] as AuditLog, ...prev]);
+          setAuditLogs(prev => [{ ...data[0], entityId: data[0].entity_id, actorId: user.id, actorName: myName || user.email }, ...prev]);
       }
     } catch (e) {
       console.error("Error logging action", e);
@@ -469,21 +470,19 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
     }
   };
 
-  const updatePayment = async (loanId: string, paymentId: string, amount: number) => {
-    if (!user || !isSupabaseConfigured) throw new Error('Please sign in before editing a payment.');
-    const { data: row, error: readError } = await supabase.from('loans').select('*').eq('id', loanId).single();
-    if (readError) throw readError;
-    if (!row || (row.user_id && row.user_id !== user.id)) throw new Error('You can only edit payments on loans you created.');
-    const current = { id: row.id, payments: row.payments || [], totalRepayment: row.total_repayment, dueDate: row.due_date, status: row.status } as Loan;
-    const original = current.payments.find(p => p.id === paymentId);
-    const corrected = correctPayment(current, paymentId, amount);
-    const payload = { payments: corrected.payments, balance: corrected.balance, status: corrected.status, ...(corrected.writeOffAmount !== undefined ? { write_off_amount: corrected.writeOffAmount } : {}) };
-    const { data: updated, error } = await supabase.from('loans').update(payload).eq('id', loanId).eq('payments', JSON.stringify(row.payments || [])).eq('balance', row.balance).eq('status', row.status).eq('total_repayment', row.total_repayment).eq('due_date', row.due_date).select();
-    if (error) throw error;
-    if (!updated?.length) throw new Error('This loan changed or you do not have permission. Refresh the page and try again.');
-    setLoans(prev => prev.map(l => l.id === loanId ? { ...l, ...corrected } : l));
-    logAction('UPDATE_PAYMENT', `Corrected payment ${paymentId}: R${original?.amount.toFixed(2)} to R${amount.toFixed(2)}`, loanId);
+  const changePayment = async (loanId: string, paymentId: string, amount: number | null, remove: boolean) => {
+    if (!user || !isSupabaseConfigured) throw new Error('Please sign in.');
+    const loan = loans.find(l => l.id === loanId);
+    const payment = loan?.payments.find(p => p.id === paymentId);
+    if (!loan || !payment || payment.method === 'PENALTY') throw new Error('This payment cannot be changed.');
+    if (loan.userId && loan.userId !== user.id) throw new Error('You can only change your own loans.');
+    if (!remove) correctPayment(loan,paymentId,amount!);
+    const {error} = await supabase.rpc('change_recorded_payment',{p_loan_id:loanId,p_payment_id:paymentId,p_amount:amount,p_delete:remove,p_expected_amount:payment.amount});
+    if(error) throw new Error(error.message.includes('function') ? 'The payment-corrections database update must be installed first.' : error.message);
+    await fetchData();
   };
+  const updatePayment = (loanId:string,paymentId:string,amount:number) => changePayment(loanId,paymentId,amount,false);
+  const deletePayment = (loanId:string,paymentId:string) => changePayment(loanId,paymentId,null,true);
   const recalculateLoans = async () => {
     const now = new Date();
 
@@ -678,6 +677,7 @@ export const StoreProvider = ({ children }: { children?: React.ReactNode }) => {
       addLoan,
       deleteLoan,
       addPayment,
+      deletePayment,
       updatePayment,
       recalculateLoans,
       updateLoanDueDate,
